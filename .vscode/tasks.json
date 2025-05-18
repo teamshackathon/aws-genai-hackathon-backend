@@ -37,6 +37,13 @@
             "args": [],
             "problemMatcher": [],
         },
+        {
+            "label": "コードのフォーマット",
+            "type": "shell",
+            "command": "ruff check ./ --fix",
+            "args": [],
+            "problemMatcher": [],
+        }
     ],
     "inputs": [
         {
