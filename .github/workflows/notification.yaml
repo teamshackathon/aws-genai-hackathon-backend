@@ -1,0 +1,19 @@
+name: discord-notification 
+on:
+  push:
+    branches:
+      - stg
+  pull_request:
+    branches:
+      - stg
+      - main
+jobs:
+  command:
+    name: Use Actions Status Discord 
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Dicord Notification
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}

@@ -1,0 +1,7 @@
+.github
+.vscode
+tools
+.gitignore
+docker-compose.yaml
+pull_request.bat
+send_discord.bat
