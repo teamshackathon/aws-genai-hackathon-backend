@@ -2,12 +2,13 @@ version: '3.8'
 
 services:
   api:
-    build: .
+    image: ghcr.io/teamshackathon/prod/aws-genai-backend:latest
     container_name: bae-recipe-api
     ports:
       - "8000:8000"
     environment:
       - ENVIRONMENT=development
+      - ALLOWED_ORIGINS=http://localhost:5173
     volumes:
       - .:/app
     depends_on:
