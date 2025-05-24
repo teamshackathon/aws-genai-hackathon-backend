@@ -13,3 +13,6 @@ seeds/*
 # 環境変数系
 .env
 response.json
+
+# k8s系
+k8s/secrets.yaml

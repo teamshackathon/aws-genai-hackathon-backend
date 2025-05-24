@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from .endpoints import healthcheck
+
+from .endpoints import healthcheck, users
 
 api_router = APIRouter()
 
@@ -9,3 +10,5 @@ api_router.include_router(
     prefix="/healthcheck",
     tags=["healthcheck"]
 )
+
+api_router.include_router(users.router, prefix="/users", tags=["users"])

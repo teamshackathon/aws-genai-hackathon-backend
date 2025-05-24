@@ -1,0 +1,16 @@
+[tool.ruff]
+
+line-length = 200
+
+lint.select = ["I", "E", "F"]
+lint.ignore = ["E402", "F403"]
+
+exclude = [
+    ".git",
+    ".ruff_cache",
+    ".vscode",
+    ".github",
+    "k8s",
+    "__init__.py",
+    "/**/migrations/versions/*.py"
+]

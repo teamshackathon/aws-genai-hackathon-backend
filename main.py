@@ -1,13 +1,16 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.v1.api import api_router
-import os
+
+from app.api.v1.api import api_router
+from app.core.config import settings
 
 if os.getenv("OPENAPI_URL"):
     openapi_url = os.getenv("OPENAPI_URL")
 
 app = FastAPI(
-    title="BAE-RECIPE API",
+    title=settings.PROJECT_NAME,
     version="1.0.0",
     openapi_url=openapi_url+"/openapi.json" if os.getenv("OPENAPI_URL") else "/openapi.json",
 )
@@ -25,4 +28,4 @@ app.add_middleware(
     allow_headers=["*"],       # Allow all headers
 )
 
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix=settings.API_V1_STR)
