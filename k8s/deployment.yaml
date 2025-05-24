@@ -31,6 +31,27 @@ spec:
           value: "https://163.44.125.128"
         - name: OPENAPI_URL
           value: "/api-bae-recipe"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: POSTGRES_SERVER
+          value: "postgres-service.database.svc.cluster.local"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_DB
+        - name: POSTGRES_PORT
+          value: "5432"
         ports:
         - containerPort: 8000
           name: http
