@@ -12,3 +12,19 @@ spec:
     protocol: TCP
     name: http
   type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: bae-recipe
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  type: ClusterIP

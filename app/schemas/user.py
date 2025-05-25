@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, computed_field
 
 
 class UserBase(BaseModel):
@@ -14,6 +14,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """パスワードありユーザー作成スキーマ"""
     email: EmailStr
+    name: str
     password: str
 
 class UserOAuthCreate(UserBase):
@@ -56,6 +57,31 @@ class UserInDBBase(UserBase):
 class User(UserInDBBase):
     """APIレスポンス用ユーザースキーマ"""
     pass
+
+class UserMe(BaseModel):
+    """ログインユーザー自身の情報スキーマ（限定フィールド）"""
+    id: int
+    name: Optional[str] = None
+    email: Optional[str] = None
+    profile_image_url: Optional[str] = None  # 元のフィールド
+    github_avatar_url: Optional[str] = None  # 元のフィールド
+    google_picture: Optional[str] = None     # 元のフィールド
+    last_login: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+    
+    @computed_field
+    @property
+    def avatar_url(self) -> Optional[str]:
+        """アバター画像URLを返す"""
+        if self.profile_image_url:
+            return self.profile_image_url
+        elif self.github_avatar_url:
+            return self.github_avatar_url
+        elif self.google_picture:
+            return self.google_picture
+        return None
 
 class Token(BaseModel):
     """アクセストークンスキーマ"""

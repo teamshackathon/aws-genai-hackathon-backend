@@ -9,7 +9,7 @@ class Users(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # 基本情報
-    name = Column(String, index=True)
+    name = Column(String, index=True, unique=True, nullable=True)  # ユーザー名
     email = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=True)  # パスワード認証用
     is_active = Column(Boolean, default=True)
