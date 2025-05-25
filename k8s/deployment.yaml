@@ -68,6 +68,11 @@ spec:
             secretKeyRef:
               name: postgres-secret
               key: FRONTEND_REDIRECT_URL
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: REDIS_HOST        
         - name: POSTGRES_PORT
           value: "5432"
         ports:
