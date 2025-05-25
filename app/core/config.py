@@ -1,8 +1,10 @@
 import os
 from typing import Any, Optional
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
+load_dotenv()
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "BAE-RECIPE API"
@@ -10,6 +12,22 @@ class Settings(BaseSettings):
     
     # 環境設定
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+
+    # JWT認証
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-for-development")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))  # 1日
+
+    # OAuth設定
+    GITHUB_CLIENT_ID: Optional[str] = os.getenv("GITHUB_CLIENT_ID")
+    GITHUB_CLIENT_SECRET: Optional[str] = os.getenv("GITHUB_CLIENT_SECRET")
+    GITHUB_REDIRECT_URI: Optional[str] = os.getenv("GITHUB_REDIRECT_URI")
+
+    GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI")
+
+    FRONTEND_REDIRECT_URL: Optional[str] = os.getenv("FRONTEND_REDIRECT_URL", "http://localhost:3000/bae-recipe")
     
     # データベース設定
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "db")
@@ -17,6 +35,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "bae_recipe")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+
+    # Redis設定
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
     
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
