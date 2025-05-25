@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app.core.security import generate_state_token, verify_state_token
+from app.core.security import generate_state_token
 from app.crud import user as crud
 from app.schemas import user as schemas
 
@@ -115,21 +115,21 @@ async def github_callback(
         )
     
     # セッションIDを取得
-    if settings.ENVIRONMENT == "production":
-        session_id = request.cookies.get("session_id")
-        print(f"Session ID from callback: {session_id}")
-        if not session_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="セッションIDが見つかりません"
-            )
+    # if settings.ENVIRONMENT == "production":
+    #     session_id = request.cookies.get("session_id")
+    #     print(f"Session ID from callback: {session_id}")
+    #     if not session_id:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail="セッションIDが見つかりません"
+    #         )
         
-        # stateトークンを検証
-        if not verify_state_token(session_id, state):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="不正なリクエスト - stateトークンが無効です"
-            )
+    #     # stateトークンを検証
+    #     if not verify_state_token(session_id, state):
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail="不正なリクエスト - stateトークンが無効です"
+    #         )
     
     # GitHubからアクセストークンを取得
     token_url = "https://github.com/login/oauth/access_token"
