@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app.core.security import generate_state_token, verify_state_token
+from app.core.security import generate_state_token
 from app.crud import user as crud
 from app.schemas import user as schemas
 
