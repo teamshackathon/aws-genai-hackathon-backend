@@ -15,7 +15,7 @@ services:
       - .:/app
     depends_on:
       - db
-    command: sh -c "pip install -r requirements.dev.txt && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    command: sh -c "pip install -r requirements.dev.txt && alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
   db:
     image: postgres:15
@@ -33,6 +33,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis:
+    image: redis:latest
+    container_name: bae-recipe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   pgadmin:
     image: dpage/pgadmin4
@@ -53,3 +61,4 @@ services:
 volumes:
   postgres_data:
   pgadmin_data:
+  redis_data:

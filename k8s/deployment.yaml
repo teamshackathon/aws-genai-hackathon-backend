@@ -24,8 +24,11 @@ spec:
       - name: backend
         image: ghcr.io/teamshackathon/prod/aws-genai-backend:latest
         imagePullPolicy: Always
-        command: ["uvicorn"]
-        args: ["main:app", "--host", "0.0.0.0", "--port", "8000"]
+        command: ["sh", "-c"]
+        args:
+          - |
+            alembic upgrade head && \
+            uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2 --timeout-keep-alive 60 --log-level info
         env:
         - name: ALLOWED_ORIGINS
           value: "https://163.44.125.128"
@@ -50,6 +53,21 @@ spec:
             secretKeyRef:
               name: postgres-secret
               key: POSTGRES_DB
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: GITHUB_CLIENT_ID
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: GITHUB_CLIENT_SECRET
+        - name: FRONTEND_REDIRECT_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: FRONTEND_REDIRECT_URL
         - name: POSTGRES_PORT
           value: "5432"
         ports:
@@ -75,4 +93,40 @@ spec:
             port: 8000
             scheme: HTTP
           initialDelaySeconds: 20
+          periodSeconds: 10
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: bae-recipe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:latest
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        livenessProbe:
+          exec:
+            command: ["redis-cli", "ping"]
+          initialDelaySeconds: 10
           periodSeconds: 10
