@@ -20,6 +20,56 @@ spec:
       labels:
         app: aws-genai-backend
     spec:
+      initContainers:
+      - name: discord-notification
+        image: alpine/curl
+        command:
+        - sh
+        - -c
+        - |
+          WEBHOOK_URL="${DISCORD_WEBHOOK_URL}"
+          POD_NAME="${POD_NAME:-$(hostname)}"
+          NAMESPACE="${POD_NAMESPACE:-default}"
+          DEPLOYMENT="aws-genai-backend"
+          PRODUCTION_URL="${PRODUCTION_URL:-N/A}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚀 Pod Restarted\",
+                \"description\": \"A pod has been restarted in the Kubernetes cluster.\",
+                \"color\": 5814783,
+                \"fields\": [
+                  {\"name\": \"📛 Pod Name\", \"value\": \"$POD_NAME\", \"inline\": true},
+                  {\"name\": \"📦 Deployment\", \"value\": \"$DEPLOYMENT\", \"inline\": true},
+                  {\"name\": \"📍 Namespace\", \"value\": \"$NAMESPACE\", \"inline\": true},
+                  {\"name\": \"🔗 URL\", \"value\": \"$PRODUCTION_URL\", \"inline\": false}
+                ],
+                \"timestamp\": \"$TIMESTAMP\"
+              }]
+            }" \
+            "$WEBHOOK_URL"
+        env:
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: DISCORD_WEBHOOK_URL
+        - name: PRODUCTION_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: PRODUCTION_URL
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
       containers:
       - name: backend
         image: ghcr.io/teamshackathon/prod/aws-genai-backend:latest
