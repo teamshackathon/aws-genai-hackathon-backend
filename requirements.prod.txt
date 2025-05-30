@@ -10,3 +10,4 @@ passlib[bcrypt]
 python-multipart
 httpx
 redis
+aioboto3
