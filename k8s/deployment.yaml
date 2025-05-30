@@ -125,6 +125,26 @@ spec:
               key: REDIS_HOST        
         - name: POSTGRES_PORT
           value: "5432"
+        - name: MINIO_ENDPOINT_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: MINIO_ENDPOINT_URL
+        - name: MINIO_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: MINIO_ACCESS_KEY_ID
+        - name: MINIO_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: MINIO_SECRET_ACCESS_KEY
+        - name: STORAGE_BUCKET_NAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: STORAGE_BUCKET_NAME
         ports:
         - containerPort: 8000
           name: http

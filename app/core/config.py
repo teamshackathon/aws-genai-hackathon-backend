@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
+
+    # MinIO設定
+    MINIO_ENDPOINT_URL: str = os.getenv("MINIO_ENDPOINT_URL")
+    MINIO_ACCESS_KEY_ID: str = os.getenv("MINIO_ACCESS_KEY_ID", "minioadmin")
+    MINIO_SECRET_ACCESS_KEY: str = os.getenv("MINIO_SECRET_ACCESS_KEY", "minioadmin")
+    STORAGE_BUCKET_NAME: str = os.getenv("STORAGE_BUCKET_NAME", "bae-recipe-bucket")
     
     def __init__(self, **data: Any):
         super().__init__(**data)
