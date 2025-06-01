@@ -1,5 +1,4 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base_class import Base
@@ -7,6 +6,9 @@ from app.db.base_class import Base
 
 class Users(Base):
     """ユーザーモデル"""
+
+    __tablename__ = "users"
+
     id = Column(Integer, primary_key=True, index=True)
     
     # 基本情報
@@ -41,8 +43,6 @@ class Users(Base):
     refresh_token = Column(String, nullable=True)
     token_expires = Column(DateTime, nullable=True)
 
-    user_recipes = relationship("UserRecipe", back_populates="user", cascade="all, delete-orphan")
-    
     @property
     def display_name(self):
         """表示用の名前を返す"""
