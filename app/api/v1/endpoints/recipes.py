@@ -1,14 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List, Optional
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.crud.recipe import get_all_recipes_no_limit, get_recipe, get_recipes, get_recipes_with_details
 from app.database import get_db
-from app.crud.recipe import (
-    get_recipes, 
-    get_recipe, 
-    get_all_recipes_no_limit,
-    get_recipes_with_details
-)
 from app.schemas.recipe import Recipe
 
 router = APIRouter()
