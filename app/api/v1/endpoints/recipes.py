@@ -1,74 +1,55 @@
 from typing import List, Optional
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.crud.recipe import get_all_recipes_no_limit, get_recipe, get_recipes, get_recipes_with_details
-from app.database import get_db
+from app.api import deps
+from app.crud.recipes import get_recipe, get_recipes, get_recipes_with_details
 from app.schemas.recipe import Recipe
 
-router = APIRouter()
+router = APIRouter(prefix="/recipes", tags=["recipes"])
 
-
-@router.get("/all", response_model=List[Recipe], tags=["recipes"])
-def get_all_recipes(db: Session = Depends(get_db)):
-    """
-    全レシピを取得（制限なし）
-    ブラウザで http://localhost:8000/recipes/all にアクセス
-    """
-    recipes = get_all_recipes_no_limit(db=db)
-    return recipes
-
-
-@router.get("", response_model=List[Recipe], tags=["recipes"])
-def get_recipes_with_pagination(
+@router.get("", response_model=List[Recipe])
+def read_recipes(
+    db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
     status_id: Optional[int] = None,
     external_service_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    with_details: bool = False
 ):
     """
-    レシピ一覧を取得（フィルタ・ページネーション対応）
-    
-    使用例:
-    - 全件: http://localhost:8000/recipes
-    - ページネーション: http://localhost:8000/recipes?skip=0&limit=10
-    - フィルタ: http://localhost:8000/recipes?status_id=0
-    """
-    recipes = get_recipes(
-        db=db, 
-        skip=skip, 
-        limit=limit, 
-        status_id=status_id, 
-        external_service_id=external_service_id
-    )
-    return recipes
+    レシピの一覧を取得します。
 
+    - **ページネーション**: `skip` と `limit` で取得範囲を指定
+    - **フィルタ**: `status_id` や `external_service_id` で絞り込み
+    - **詳細情報**: `with_details=true` を付けると詳細情報付きで取得
 
-@router.get("/{recipe_id}", response_model=Recipe, tags=["recipes"])
-def get_recipe_by_id(recipe_id: int, db: Session = Depends(get_db)):
+    ---
+    **使用例**:
+    - `GET /recipes`
+    - `GET /recipes?skip=10&limit=10`
+    - `GET /recipes?status_id=1`
+    - `GET /recipes?with_details=true`
     """
-    レシピIDを指定して単一レシピを取得
-    
-    使用例: http://localhost:8000/recipes/1
+   if with_details:
+        return get_recipes_with_details(db=db, skip=skip, limit=limit)
+    return get_recipes(
+        db=db,
+        skip=skip,
+        limit=limit,
+        status_id=status_id,
+        external_service_id=external_service_id,
+    ):
+
+@router.get("/{recipe_id}", response_model=Recipe)
+def read_recipe_by_id(recipe_id: int, db: Session = Depends(deps.get_db)):
     """
-    recipe = get_recipe(db=db, recipe_id=recipe_id)
-    if recipe is None:
+    指定されたIDの単一レシピを取得します。
+
+    ---
+    **使用例**: `GET /recipes/1`
+    """
+    db_recipe = get_recipe(db=db, recipe_id=recipe_id)
+    if db_recipe is None:
         raise HTTPException(status_code=404, detail="Recipe not found")
-    return recipe
-
-
-@router.get("/details/all", response_model=List[Recipe], tags=["recipes"])
-def get_all_recipes_with_details(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
-    """
-    レシピ一覧を詳細情報付きで取得
-    
-    使用例: http://localhost:8000/recipes/details/all
-    """
-    recipes = get_recipes_with_details(db=db, skip=skip, limit=limit)
-    return recipes
+    return db_recipe
