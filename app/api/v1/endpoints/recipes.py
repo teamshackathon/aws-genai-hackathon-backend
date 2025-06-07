@@ -19,35 +19,23 @@ def read_recipes(
 ):
     """
     レシピの一覧を取得します。
-
-    - **ページネーション**: `skip` と `limit` で取得範囲を指定
-    - **フィルタ**: `status_id` や `external_service_id` で絞り込み
-    - **詳細情報**: `with_details=true` を付けると詳細情報付きで取得
-
-    ---
-    **使用例**:
-    - `GET /recipes`
-    - `GET /recipes?skip=10&limit=10`
-    - `GET /recipes?status_id=1`
-    - `GET /recipes?with_details=true`
     """
-   if with_details:
+    if with_details:
         return get_recipes_with_details(db=db, skip=skip, limit=limit)
+    
     return get_recipes(
         db=db,
         skip=skip,
         limit=limit,
         status_id=status_id,
         external_service_id=external_service_id,
-    ):
+    )
+
 
 @router.get("/{recipe_id}", response_model=Recipe)
 def read_recipe_by_id(recipe_id: int, db: Session = Depends(deps.get_db)):
     """
     指定されたIDの単一レシピを取得します。
-
-    ---
-    **使用例**: `GET /recipes/1`
     """
     db_recipe = get_recipe(db=db, recipe_id=recipe_id)
     if db_recipe is None:
