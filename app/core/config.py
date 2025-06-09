@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY_ID: str = os.getenv("MINIO_ACCESS_KEY_ID", "minioadmin")
     MINIO_SECRET_ACCESS_KEY: str = os.getenv("MINIO_SECRET_ACCESS_KEY", "minioadmin")
     STORAGE_BUCKET_NAME: str = os.getenv("STORAGE_BUCKET_NAME", "bae-recipe-bucket")
+
+    # AWSのクライアント設定
+    AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
+    AWS_REGION_NAME: Optional[str] = os.getenv("AWS_REGION_NAME", "ap-northeast-1")
     
     def __init__(self, **data: Any):
         super().__init__(**data)
