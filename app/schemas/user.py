@@ -67,6 +67,7 @@ class UserMe(BaseModel):
     github_avatar_url: Optional[str] = None  # 元のフィールド
     google_picture: Optional[str] = None     # 元のフィールド
     last_login: Optional[datetime] = None
+    bio: Optional[str] = None
 
     class Config:
         from_attributes = True

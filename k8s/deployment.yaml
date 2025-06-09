@@ -145,6 +145,21 @@ spec:
             secretKeyRef:
               name: postgres-secret
               key: STORAGE_BUCKET_NAME
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: AWS_DEFAULT_REGION
         ports:
         - containerPort: 8000
           name: http

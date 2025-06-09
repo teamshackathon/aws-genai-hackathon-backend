@@ -48,23 +48,23 @@ def login_password(
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # 秒単位
     }
 
-@router.post("/register", response_model=schemas.User)
-def register_new_user(
-    *,
-    db: Session = Depends(deps.get_db),
-    user_in: schemas.UserCreate,
-) -> Any:
-    """
-    新しいユーザーを登録
-    """
-    user = crud.get_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="このメールアドレスはすでに登録されています。",
-        )
-    user = crud.create(db, obj_in=user_in)
-    return user
+# @router.post("/register", response_model=schemas.User)
+# def register_new_user(
+#     *,
+#     db: Session = Depends(deps.get_db),
+#     user_in: schemas.UserCreate,
+# ) -> Any:
+#     """
+#     新しいユーザーを登録
+#     """
+#     user = crud.get_by_email(db, email=user_in.email)
+#     if user:
+#         raise HTTPException(
+#             status_code=400,
+#             detail="このメールアドレスはすでに登録されています。",
+#         )
+#     user = crud.create(db, obj_in=user_in)
+#     return user
 
 @router.get("/login/github")
 async def login_github(request: Request):
