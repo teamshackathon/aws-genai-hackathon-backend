@@ -5,3 +5,6 @@ python-multipart
 httpx
 redis
 aioboto3
+boto3
+langchain
+langchain_aws
