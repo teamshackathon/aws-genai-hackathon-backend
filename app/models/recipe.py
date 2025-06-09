@@ -15,7 +15,7 @@ class ExternalService(Base):
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
     # リレーションシップ
-    recipes = relationship("Recipe", back_populates="external_service")
+    # recipes = relationship("Recipe", back_populates="external_service")
     
     def __repr__(self):
         return f"<ExternalService(id={self.id}, name={self.services_name})>"
@@ -30,8 +30,8 @@ class RecipeStatus(Base):
     created_date = Column(DateTime, default=func.now(), nullable=False)
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
-    # リレーションシップ
-    recipes = relationship("Recipe", back_populates="status")
+    # # リレーションシップ
+    # recipes = relationship("Recipe", back_populates="status")
     
     def __repr__(self):
         return f"<RecipeStatus(id={self.id}, status={self.status})>"
@@ -50,13 +50,13 @@ class Recipe(Base):
     recipe_name = Column(String(256), nullable=False, comment="料理名")
     
     # リレーションシップ
-    status = relationship("RecipeStatus", back_populates="recipes")
-    external_service = relationship("ExternalService", back_populates="recipes")
+    # status = relationship("RecipeStatus", back_populates="recipes")
+    # external_service = relationship("ExternalService", back_populates="recipes")
     
     # 拡張リレーションシップ
-    ingredients = relationship("Ingredient", back_populates="recipe", cascade="all, delete-orphan")
-    processes = relationship("Process", back_populates="recipe", cascade="all, delete-orphan")
-    user_recipes = relationship("UserRecipe", back_populates="recipe", cascade="all, delete-orphan")
+    # ingredients = relationship("Ingredient", back_populates="recipe", cascade="all, delete-orphan")
+    # processes = relationship("Process", back_populates="recipe", cascade="all, delete-orphan")
+    # user_recipes = relationship("UserRecipe", back_populates="recipe", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Recipe(id={self.id}, name={self.recipe_name})>"
@@ -74,7 +74,7 @@ class Ingredient(Base):
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
     # リレーションシップ
-    recipe = relationship("Recipe", back_populates="ingredients")
+    # recipe = relationship("Recipe", back_populates="ingredients")
     
     def __repr__(self):
         return f"<Ingredient(id={self.id}, ingredient={self.ingredient}, amount={self.amount})>"
@@ -92,7 +92,7 @@ class Process(Base):
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
     # リレーションシップ
-    recipe = relationship("Recipe", back_populates="processes")
+    # recipe = relationship("Recipe", back_populates="processes")
     
     __table_args__ = (
         UniqueConstraint("recipe_id", "process_number", name="uq_recipe_process_number"),

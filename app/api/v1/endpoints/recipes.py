@@ -1,9 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.crud.recipes import get_recipe, get_recipes, get_recipes_with_details
+from app.crud.recipe import get_recipe, get_recipes, get_recipes_with_details
 from app.schemas.recipe import Recipe
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])

@@ -19,8 +19,8 @@ class UserRecipe(Base):
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
     # リレーションシップ
-    user = relationship("Users", back_populates="user_recipes")
-    recipe = relationship("Recipe", back_populates="user_recipes")
+    # user = relationship("Users", back_populates="user_recipes")
+    # recipe = relationship("Recipe", back_populates="user_recipes")
     
     def __repr__(self):
         return f"<UserRecipe(id={self.id}, user_id={self.user_id}, recipe_id={self.recipe_id})>"
