@@ -1,44 +1,59 @@
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.crud.recipe import get_recipe, get_recipes, get_recipes_with_details
-from app.schemas.recipe import Recipe
+from app.models.user import Users
+from app.schemas.recipe import Recipe, RecipeList
+from app.services.recipe_service import RecipeService
 
-router = APIRouter(prefix="/recipes", tags=["recipes"])
+router = APIRouter()
 
-@router.get("", response_model=List[Recipe])
-def read_recipes(
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
-    status_id: Optional[int] = None,
-    external_service_id: Optional[int] = None,
-    with_details: bool = False
-):
+def get_recipe_service(db: Session = Depends(deps.get_db)) -> RecipeService:
     """
-    レシピの一覧を取得します。
+    レシピサービスの依存関係を取得します。
     """
-    if with_details:
-        return get_recipes_with_details(db=db, skip=skip, limit=limit)
-    
-    return get_recipes(
-        db=db,
-        skip=skip,
-        limit=limit,
-        status_id=status_id,
-        external_service_id=external_service_id,
+    try:
+        return RecipeService(db=db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"レシピサービスの初期化に失敗しました: {str(e)}"
+        )
+
+# ページネーション付きのレシピ一覧を取得
+@router.get("", response_model=RecipeList)
+def get_recipes(
+    page: int = Query(1, ge=1, description="ページ番号"),
+    per_page: int = Query(20, ge=1, le=100, description="1ページあたりのレシピ数"),
+    keyword: Optional[str] = Query(None, description="検索キーワード"),
+    favorites_only: bool = Query(False, description="お気に入りのみを取得するかどうか"),
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> RecipeList:
+    """
+    ページネーション付きのレシピ一覧を取得します。
+    """
+    return recipe_service.get_recipes(
+        user_id=current_user.id,
+        page=page,
+        per_page=per_page,
+        keyword=keyword,
+        favorites_only=favorites_only
     )
 
 
 @router.get("/{recipe_id}", response_model=Recipe)
-def read_recipe_by_id(recipe_id: int, db: Session = Depends(deps.get_db)):
+def get_recipe_by_id(
+    recipe_id: int, 
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> Recipe:
     """
     指定されたIDの単一レシピを取得します。
     """
-    db_recipe = get_recipe(db=db, recipe_id=recipe_id)
-    if db_recipe is None:
+    recipe = recipe_service.get_recipe_by_id(recipe_id, current_user.id)
+    if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
-    return db_recipe
+    return recipe
