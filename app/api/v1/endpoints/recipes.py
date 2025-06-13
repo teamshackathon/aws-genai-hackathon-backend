@@ -1,20 +1,44 @@
+from typing import List, Optional
 
-from fastapi import APIRouter
-from starlette.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from app.api import deps
+from app.crud.recipe import get_recipe, get_recipes, get_recipes_with_details
+from app.schemas.recipe import Recipe
 
+router = APIRouter(prefix="/recipes", tags=["recipes"])
 
-@router.get("" ,tags=["recipes"])
-def recipes_check():
+@router.get("", response_model=List[Recipe])
+def read_recipes(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    status_id: Optional[int] = None,
+    external_service_id: Optional[int] = None,
+    with_details: bool = False
+):
     """
-    レシピのチェックエンドポイント
+    レシピの一覧を取得します。
     """
-    return JSONResponse(content={"dish_name": "生姜焼き"})
+    if with_details:
+        return get_recipes_with_details(db=db, skip=skip, limit=limit)
+    
+    return get_recipes(
+        db=db,
+        skip=skip,
+        limit=limit,
+        status_id=status_id,
+        external_service_id=external_service_id,
+    )
 
-@router.get("/{recipe_id}", tags=["recipes"])
-def get_recipe_id(recipe_id: int):
+
+@router.get("/{recipe_id}", response_model=Recipe)
+def read_recipe_by_id(recipe_id: int, db: Session = Depends(deps.get_db)):
     """
-    レシピIDを受け取ってIDを返すエンドポイント
+    指定されたIDの単一レシピを取得します。
     """
-    return JSONResponse(content={"recipe_id": recipe_id})
+    db_recipe = get_recipe(db=db, recipe_id=recipe_id)
+    if db_recipe is None:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    return db_recipe

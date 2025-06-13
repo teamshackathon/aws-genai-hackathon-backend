@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -9,6 +10,9 @@ from app.schemas import user as schemas
 
 router = APIRouter()
 
+# ロガーの設定
+logger = logging.getLogger(__name__)
+
 # 自分のユーザー情報を取得するエンドポイント
 @router.get("/me", response_model=schemas.UserMe)
 def read_users_me(current_user = Depends(deps.get_current_user)) -> Any:
@@ -17,6 +21,7 @@ def read_users_me(current_user = Depends(deps.get_current_user)) -> Any:
     """
     # 返却するカラムを制限
     current_user = schemas.User.from_orm(current_user)
+    logger.info(f"現在のユーザー情報: {current_user.id}")
     return current_user
 
 @router.put("/me", response_model=schemas.UserMe)

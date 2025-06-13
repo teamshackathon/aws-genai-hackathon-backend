@@ -1,3 +1,4 @@
+import logging
 import os
 
 from fastapi import FastAPI
@@ -5,6 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.log.logging_config import setup_logging
+
+setup_logging()
+logger = logging.getLogger("fastapi")
 
 if os.getenv("OPENAPI_URL"):
     openapi_url = os.getenv("OPENAPI_URL")
