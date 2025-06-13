@@ -1,0 +1,262 @@
+import json
+import logging
+from datetime import datetime
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from sqlalchemy.orm import Session
+
+from app.api import deps
+from app.core.websocket_manager import ws_manager
+from app.models.user import Users
+from app.schemas.mongo import WebSocketMessage
+from app.services.mongodb_recipe_generation_service import MongoDBRecipeGenerationService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+@router.get("/my-session")
+async def get_my_session(
+    current_user: Users =Depends(deps.get_current_user),
+    mongodb: AsyncIOMotorDatabase = Depends(deps.get_mongodb)
+):
+    """
+    現在のユーザーのWebSocketのセッション情報を取得するエンドポイント
+    """
+    logger.info(f"Fetching session for user: {current_user.id}")
+
+    mongo_service = MongoDBRecipeGenerationService(mongodb)
+    
+    try:
+        session = await mongo_service.get_user_sessions(current_user.id)
+        if not session:
+            logger.warning(f"No active session found for user: {current_user.id}")
+            return None
+        
+        logger.info(f"Session found for user {current_user.id}: {session.session_id}")
+        return session
+    
+    except Exception as e:
+        logger.error(f"Error retrieving session for user {current_user.id}: {str(e)}")
+        return None
+
+@router.websocket("/recipe-gen")
+async def recipe_gen(
+    websocket: WebSocket,
+    session_id: Optional[str] = Query(None, description="Session ID for the recipe generation"),
+    token: Optional[str] = Query(None, description="Authentication token for the user"),
+    mongodb: AsyncIOMotorDatabase = Depends(deps.get_mongodb),
+    db: Session = Depends(deps.get_db)
+):
+    """
+    レシピ生成のWebSocketエンドポイント
+    """
+    logger.warning(f"WebSocket connection request: session_id={session_id}, token={token}")
+
+    # await websocket.accept()
+    
+    try:
+        mongo_service = MongoDBRecipeGenerationService(mongodb)
+
+        # トークンの検証
+        user = None
+        if token:
+            try:
+                user = deps.get_current_user(db=db, token=token)
+                logger.info(f"User authenticated: {user.id}")
+            except Exception as e:
+                logger.error(f"Authentication failed: {str(e)}")
+                await websocket.close(code=1008, reason="Invalid authentication token")
+                return
+        else:
+            logger.warning("No authentication token provided")
+            await websocket.close(code=1008, reason="Authentication token is required")
+            return
+
+        # セッションの処理
+        current_session = None
+        if session_id:
+            # 既存セッションの検証
+            try:
+                existing_session = await mongo_service.get_session(session_id)
+                if not existing_session:
+                    logger.warning(f"Session not found: {session_id}")
+                    await websocket.close(code=1008, reason="Invalid session ID")
+                    return
+                current_session = existing_session
+                logger.info(f"Using existing session: {session_id}")
+            except Exception as e:
+                logger.error(f"Error retrieving session: {str(e)}")
+                await websocket.close(code=1011, reason="Session retrieval error")
+                return
+        else:
+            # 新しいセッションを作成
+            try:
+                current_session = await mongo_service.create_session(user_id=user.id)
+                session_id = current_session.session_id
+                logger.info(f"Created new session: {session_id}")
+            except Exception as e:
+                logger.error(f"Error creating session: {str(e)}")
+                await websocket.close(code=1011, reason="Session creation error")
+                return
+
+        # WebSocket接続をマネージャーに登録
+        connection_id = await ws_manager.connect(websocket, session_id)
+        logger.info(f"WebSocket connected: connection_id={connection_id}, session_id={session_id}")
+
+        # セッション履歴を送信
+        await send_session_history(websocket, mongo_service, session_id)
+        
+        # 接続確立メッセージを送信
+        await ws_manager.send_personal_message({
+            "type": "connection_established",
+            "data": {
+                "session_id": session_id,
+                "connection_id": connection_id,
+                "status": current_session.status,
+                "url": getattr(current_session, 'url', None)
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }, session_id)
+        
+        # 接続をログに記録
+        await mongo_service.add_message_to_history(
+            session_id=session_id,
+            message_type="system_response",
+            content="WebSocket connection established",
+            metadata={"connection_id": connection_id, "user_id": user.id}
+        )
+
+        # メッセージループ
+        while True:
+            try:
+                raw_data = await websocket.receive_text()
+                logger.info(f"Received message: {raw_data}")
+
+                try:
+                    message_data = json.loads(raw_data)
+                    ws_message = WebSocketMessage(**message_data)
+                    
+                    # メッセージを履歴に保存
+                    message_id = await mongo_service.add_message_to_history(
+                        session_id=session_id,
+                        message_type="user_input",
+                        content=ws_message.data.get("content", raw_data),
+                        metadata={
+                            "message_type": ws_message.type,
+                            "raw_data": message_data,
+                            "user_id": user.id
+                        }
+                    )
+                    
+                    # エコーレスポンス（実際の処理に置き換える）
+                    await send_response(websocket, mongo_service, session_id, "message_received", {
+                        "message_id": message_id,
+                        "content": ws_message.data.get("content", raw_data)
+                    })
+                    
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error: {str(e)}")
+                    await send_error_message(websocket, mongo_service, session_id, "Invalid JSON format")
+                except Exception as e:
+                    logger.error(f"Message processing error: {str(e)}")
+                    await send_error_message(websocket, mongo_service, session_id, f"Message processing error: {str(e)}")
+                    
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket disconnected for session: {session_id}")
+                break
+                
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for session: {session_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for session {session_id}: {str(e)}")
+        try:
+            await websocket.close(code=1011, reason="Internal server error")
+        except Exception as e:
+            logger.error(f"Error closing WebSocket: {str(e)}")
+    finally:
+        # クリーンアップ処理
+        try:
+            if 'connection_id' in locals() and 'session_id' in locals():
+                ws_manager.disconnect(connection_id, session_id)
+                if 'mongo_service' in locals():
+                    await mongo_service.add_message_to_history(
+                        session_id=session_id,
+                        message_type="system_response",
+                        content="WebSocket connection closed",
+                        metadata={"connection_id": connection_id}
+                    )
+        except Exception as e:
+            logger.error(f"Cleanup error: {str(e)}")
+
+async def send_session_history(websocket: WebSocket, mongo_service: MongoDBRecipeGenerationService, session_id: str):
+    """セッション履歴を送信"""
+    try:
+        messages = await mongo_service.get_session_messages(session_id)
+        
+        if messages:
+            history_response = {
+                "type": "session_history",
+                "data": {
+                    "messages": [
+                        {
+                            "message_id": msg.message_id,
+                            "type": msg.message_type,
+                            "content": msg.content,
+                            "metadata": msg.metadata,
+                            "timestamp": msg.timestamp.isoformat()
+                        }
+                        for msg in messages
+                    ]
+                },
+                "session_id": session_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            await websocket.send_json(history_response)
+            logger.info(f"Sent session history for session: {session_id}")
+    except Exception as e:
+        logger.error(f"Error sending session history: {str(e)}")
+
+async def send_response(
+    websocket: WebSocket, 
+    mongo_service: MongoDBRecipeGenerationService,
+    session_id: str, 
+    message_type: str, 
+    data: dict
+):
+    """レスポンスメッセージを送信"""
+    try:
+        response = {
+            "type": message_type,
+            "data": data,
+            "session_id": session_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # メッセージを送信
+        if await ws_manager.send_personal_message(response, session_id):
+            # 送信成功時は履歴に保存
+            await mongo_service.add_message_to_history(
+                session_id=session_id,
+                message_type="system_response",
+                content=f"Sent {message_type}",
+                metadata={"response_data": data}
+            )
+            logger.info(f"Sent response: {message_type} to session: {session_id}")
+    except Exception as e:
+        logger.error(f"Error sending response: {str(e)}")
+
+async def send_error_message(
+    websocket: WebSocket, 
+    mongo_service: MongoDBRecipeGenerationService,
+    session_id: str, 
+    error_message: str
+):
+    """エラーメッセージを送信"""
+    await send_response(websocket, mongo_service, session_id, "error", {
+        "message": error_message,
+        "timestamp": datetime.utcnow().isoformat()
+    })

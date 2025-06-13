@@ -1,8 +1,10 @@
+import logging
 from typing import Generator
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -15,6 +17,7 @@ from app.schemas import user as schemas
 # トークン取得のためのエンドポイント
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
+logger = logging.getLogger(__name__)
 
 def get_db() -> Generator:
     """
@@ -22,10 +25,22 @@ def get_db() -> Generator:
     """
     try:
         db = SessionLocal()
+        logger.debug("データベースセッションを作成しました")
         yield db
     finally:
         db.close()
 
+def get_mongodb() -> Generator:
+    """
+    MongoDBセッションの依存関係
+    """
+    try:
+        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        logger.debug("MongoDBクライアントを作成しました")
+        mongodb = client[settings.MONGODB_DB_NAME]
+        yield mongodb
+    finally:
+        client.close()
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)

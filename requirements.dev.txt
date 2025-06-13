@@ -8,3 +8,5 @@ aioboto3
 boto3
 langchain
 langchain_aws
+uvicorn[standard]
+motor

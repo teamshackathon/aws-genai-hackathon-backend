@@ -37,8 +37,11 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
 
     # Redis設定
+    REDIS_URL: Optional[str] = None  # RedisのURLが設定されている場合
     REDIS_HOST: str = os.getenv("REDIS_HOST", "redis")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", 6379))
+    REDIS_IMAGE_CACHE_TTL: int = 3600  # 1時間
+    REDIS_MAX_IMAGE_SIZE: int = 1024 * 1024 * 5  # 最大5MB
     
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
@@ -53,6 +56,13 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_REGION_NAME: Optional[str] = os.getenv("AWS_REGION_NAME", "ap-northeast-1")
+
+    # MONOGDB設定
+    MONGODB_URL: Optional[str] = None
+    MONGODB_HOST: Optional[str] = os.getenv("MONGODB_HOST", "mongo")
+    MONGODB_USERNAME: Optional[str] = os.getenv("MONGODB_USERNAME", "mongdb")
+    MONGODB_PASSWORD: Optional[str] = os.getenv("MONGODB_PASSWORD", "mongdb")
+    MONGODB_DB_NAME: Optional[str] = os.getenv("MONGODB_DB_NAME", "bae-recipe")
     
     def __init__(self, **data: Any):
         super().__init__(**data)
@@ -71,6 +81,9 @@ class Settings(BaseSettings):
             )
             # または: self.SQLALCHEMY_DATABASE_URI = "sqlite:///./test.db"
             
+        self.REDIS_URL = f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
+        self.MONGODB_URL = f"mongodb://{self.MONGODB_USERNAME}:{self.MONGODB_PASSWORD}@{self.MONGODB_HOST}:27017"
+
     class Config:
         case_sensitive = True
 
