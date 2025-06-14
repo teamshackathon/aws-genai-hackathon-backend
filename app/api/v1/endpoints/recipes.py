@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.models.user import Users
-from app.schemas.recipe import Recipe, RecipeList
+from app.schemas.recipe import ExternalService, Recipe, RecipeList, RecipeStatus
 from app.services.recipe_service import RecipeService
 
 router = APIRouter()
@@ -43,6 +43,25 @@ def get_recipes(
         favorites_only=favorites_only
     )
 
+@router.get("/external-services", response_model=list[ExternalService])
+def get_external_services(
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> list[ExternalService]:
+    """
+    外部サービスの一覧を取得します。
+    """
+    return recipe_service.get_external_services()
+
+@router.get("/statuses", response_model=list[RecipeStatus])
+def get_recipe_statuses(
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> list[RecipeStatus]:
+    """
+    レシピステータスの一覧を取得します。
+    """
+    return recipe_service.get_recipe_statuses()
 
 @router.get("/{recipe_id}", response_model=Recipe)
 def get_recipe_by_id(
