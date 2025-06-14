@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import ValidationError
+from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -41,6 +42,21 @@ def get_mongodb() -> Generator:
         yield mongodb
     finally:
         client.close()
+
+def get_redis() -> Generator:
+    """
+    Redisセッションの依存関係
+    """
+    try:
+        redis = Redis.from_url(settings.REDIS_URL)
+        logger.debug("Redisクライアントを作成しました")
+        yield redis
+    except Exception as e:
+        logger.error(f"Redisの接続に失敗しました: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Redisの接続に失敗しました"
+        )
 
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
