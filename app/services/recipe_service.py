@@ -2,7 +2,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.recipe import Recipe
+from app.models.recipe import ExternalService, Recipe, RecipeStatus
 from app.models.user_recipe import UserRecipe
 from app.schemas.recipe import RecipeList
 
@@ -48,3 +48,11 @@ class RecipeService:
         pages = (total_count + per_page - 1) // per_page
 
         return RecipeList(items=recipes, total=total_count, page=page, per_page=per_page, pages=pages)
+    
+    def get_external_services(self) -> list[ExternalService]:
+        """外部サービスの一覧を取得"""
+        return self.db.query(ExternalService).all()
+    
+    def get_recipe_statuses(self) -> list[RecipeStatus]:
+        """レシピステータスの一覧を取得"""
+        return self.db.query(RecipeStatus).all()
