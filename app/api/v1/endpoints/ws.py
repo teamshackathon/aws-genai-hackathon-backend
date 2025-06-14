@@ -3,8 +3,9 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from redis.asyncio import Redis
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -12,10 +13,27 @@ from app.core.websocket_manager import ws_manager
 from app.models.user import Users
 from app.schemas.mongo import WebSocketMessage
 from app.services.mongodb_recipe_generation_service import MongoDBRecipeGenerationService
+from app.services.redis_queue_service import RedisQueueService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+def get_redis_queue_service(
+        redis_client: Redis = Depends(deps.get_redis)
+):
+    """
+    Redisキューサービスの依存関係を取得します。
+    """
+    try:
+        return RedisQueueService(redis_client=redis_client)
+    except Exception as e:
+        logger.error(f"Redisキューサービスの初期化に失敗しました: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Redisキューサービスの初期化に失敗しました: {str(e)}"
+        )
+
 
 @router.get("/my-session")
 async def get_my_session(
@@ -47,13 +65,15 @@ async def recipe_gen(
     websocket: WebSocket,
     session_id: Optional[str] = Query(None, description="Session ID for the recipe generation"),
     token: Optional[str] = Query(None, description="Authentication token for the user"),
+    url: Optional[str] = Query(None, description="URL of the video to process"),
     mongodb: AsyncIOMotorDatabase = Depends(deps.get_mongodb),
-    db: Session = Depends(deps.get_db)
+    db: Session = Depends(deps.get_db),
+    redis_queue_service: RedisQueueService = Depends(get_redis_queue_service)
 ):
     """
     レシピ生成のWebSocketエンドポイント
     """
-    logger.warning(f"WebSocket connection request: session_id={session_id}, token={token}")
+    logger.warning(f"WebSocket connection request: session_id={session_id}, url={url}")
 
     # await websocket.accept()
     
@@ -108,15 +128,15 @@ async def recipe_gen(
 
         # セッション履歴を送信
         await send_session_history(websocket, mongo_service, session_id)
-        
+
         # 接続確立メッセージを送信
         await ws_manager.send_personal_message({
             "type": "connection_established",
             "data": {
+                "content": "BAE-RECIPE AIにて動画からレシピを生成します。",
                 "session_id": session_id,
                 "connection_id": connection_id,
                 "status": current_session.status,
-                "url": getattr(current_session, 'url', None)
             },
             "timestamp": datetime.utcnow().isoformat()
         }, session_id)
@@ -125,8 +145,36 @@ async def recipe_gen(
         await mongo_service.add_message_to_history(
             session_id=session_id,
             message_type="system_response",
-            content="WebSocket connection established",
+            content="BAE-RECIPE AIにて動画からレシピを生成します。",
             metadata={"connection_id": connection_id, "user_id": user.id}
+        )
+
+        task_id = await redis_queue_service.enqueue_recipe_generation_task(
+            session_id=session_id,
+            url=url,
+            user_id=user.id
+        )
+
+        await ws_manager.send_personal_message({
+            "type": "system_response",
+            "data": {
+                "content": "BAE-RECIPE AIにて動画からレシピを開始します。",
+                "session_id": session_id,
+                "task_id": task_id,
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }, session_id)
+
+        # タスクIDをセッションに保存
+        await mongo_service.add_message_to_history(
+            session_id=session_id,
+            message_type="system_response",
+            content="BAE-RECIPE AIにて動画からレシピを開始します。",
+            metadata={
+                "connection_id": connection_id,
+                "user_id": user.id,
+                "task_id": task_id
+            }
         )
 
         # メッセージループ
@@ -137,25 +185,27 @@ async def recipe_gen(
 
                 try:
                     message_data = json.loads(raw_data)
+                    logger.info(f"Parsed message data: {message_data}")
                     ws_message = WebSocketMessage(**message_data)
+                    logger.info(f"Parsed WebSocket message: {ws_message}")
                     
                     # メッセージを履歴に保存
-                    message_id = await mongo_service.add_message_to_history(
-                        session_id=session_id,
-                        message_type="user_input",
-                        content=ws_message.data.get("content", raw_data),
-                        metadata={
-                            "message_type": ws_message.type,
-                            "raw_data": message_data,
-                            "user_id": user.id
-                        }
-                    )
+                    # message_id = await mongo_service.add_message_to_history(
+                    #     session_id=session_id,
+                    #     message_type="user_input",
+                    #     content=ws_message.data.get("content", raw_data),
+                    #     metadata={
+                    #         "message_type": ws_message.type,
+                    #         "raw_data": message_data,
+                    #         "user_id": user.id
+                    #     }
+                    # )
                     
                     # エコーレスポンス（実際の処理に置き換える）
-                    await send_response(websocket, mongo_service, session_id, "message_received", {
-                        "message_id": message_id,
-                        "content": ws_message.data.get("content", raw_data)
-                    })
+                    # await send_response(websocket, mongo_service, session_id, "message_received", {
+                    #     "message_id": message_id,
+                    #     "content": ws_message.data.get("content", raw_data)
+                    # })
                     
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON decode error: {str(e)}")
@@ -185,7 +235,7 @@ async def recipe_gen(
                     await mongo_service.add_message_to_history(
                         session_id=session_id,
                         message_type="system_response",
-                        content="WebSocket connection closed",
+                        content="接続が切断されました。",
                         metadata={"connection_id": connection_id}
                     )
         except Exception as e:
