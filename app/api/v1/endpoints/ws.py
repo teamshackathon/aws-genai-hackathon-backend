@@ -97,7 +97,8 @@ async def recipe_gen(
 
         # セッションの処理
         current_session = None
-        if session_id:
+        is_fast_connect = False
+        if session_id and session_id != "":
             # 既存セッションの検証
             try:
                 existing_session = await mongo_service.get_session(session_id)
@@ -114,6 +115,7 @@ async def recipe_gen(
         else:
             # 新しいセッションを作成
             try:
+                is_fast_connect = True
                 current_session = await mongo_service.create_session(user_id=user.id)
                 session_id = current_session.session_id
                 logger.info(f"Created new session: {session_id}")
@@ -129,53 +131,74 @@ async def recipe_gen(
         # セッション履歴を送信
         await send_session_history(websocket, mongo_service, session_id)
 
-        # 接続確立メッセージを送信
-        await ws_manager.send_personal_message({
-            "type": "connection_established",
-            "data": {
-                "content": "BAE-RECIPE AIにて動画からレシピを生成します。",
-                "session_id": session_id,
-                "connection_id": connection_id,
-                "status": current_session.status,
-            },
-            "timestamp": datetime.utcnow().isoformat()
-        }, session_id)
+        if is_fast_connect:
+            # 接続確立メッセージを送信
+            await ws_manager.send_personal_message({
+                "type": "connection_established",
+                "data": {
+                    "content": "BAE-RECIPE AIにて動画からレシピを生成します。",
+                    "session_id": session_id,
+                    "connection_id": connection_id,
+                    "status": current_session.status,
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }, session_id)
         
-        # 接続をログに記録
-        await mongo_service.add_message_to_history(
-            session_id=session_id,
-            message_type="system_response",
-            content="BAE-RECIPE AIにて動画からレシピを生成します。",
-            metadata={"connection_id": connection_id, "user_id": user.id}
-        )
+            # 接続をログに記録
+            await mongo_service.add_message_to_history(
+                session_id=session_id,
+                message_type="system_response",
+                content="BAE-RECIPE AIにて動画からレシピを生成します。",
+                metadata={"connection_id": connection_id, "user_id": user.id}
+            )
 
-        task_id = await redis_queue_service.enqueue_recipe_generation_task(
-            session_id=session_id,
-            url=url,
-            user_id=user.id
-        )
+            task_id = await redis_queue_service.enqueue_recipe_generation_task(
+                session_id=session_id,
+                url=url,
+                user_id=user.id
+            )
 
-        await ws_manager.send_personal_message({
-            "type": "system_response",
-            "data": {
-                "content": "BAE-RECIPE AIにて動画からレシピを開始します。",
-                "session_id": session_id,
-                "task_id": task_id,
-            },
-            "timestamp": datetime.utcnow().isoformat()
-        }, session_id)
+            await ws_manager.send_personal_message({
+                "type": "system_response",
+                "data": {
+                    "content": "BAE-RECIPE AIにて動画からレシピを開始します。",
+                    "session_id": session_id,
+                    "task_id": task_id,
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }, session_id)
 
-        # タスクIDをセッションに保存
-        await mongo_service.add_message_to_history(
-            session_id=session_id,
-            message_type="system_response",
-            content="BAE-RECIPE AIにて動画からレシピを開始します。",
-            metadata={
-                "connection_id": connection_id,
-                "user_id": user.id,
-                "task_id": task_id
-            }
-        )
+            # タスクIDをセッションに保存
+            await mongo_service.add_message_to_history(
+                session_id=session_id,
+                message_type="system_response",
+                content="BAE-RECIPE AIにて動画からレシピを開始します。",
+                metadata={
+                    "connection_id": connection_id,
+                    "user_id": user.id,
+                    "task_id": task_id
+                }
+            )
+        else:
+            # 既存セッションの接続確立メッセージを送信
+            await ws_manager.send_personal_message({
+                "type": "connection_established",
+                "data": {
+                    "content": "BAE-RECIPE AIに再接続します。",
+                    "session_id": session_id,
+                    "connection_id": connection_id,
+                    "status": current_session.status,
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }, session_id)
+
+            # 接続をログに記録
+            await mongo_service.add_message_to_history(
+                session_id=session_id,
+                message_type="system_response",
+                content="BAE-RECIPE AIに再接続します。",
+                metadata={"connection_id": connection_id, "user_id": user.id}
+            )
 
         # メッセージループ
         while True:
