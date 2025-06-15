@@ -10,3 +10,4 @@ langchain
 langchain_aws
 uvicorn[standard]
 motor
+celery
