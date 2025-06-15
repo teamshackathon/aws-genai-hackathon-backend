@@ -110,9 +110,9 @@ class MongoDBRecipeGenerationService:
         # セッションを削除
         session_result = await self.sessions_collection.delete_one({"session_id": session_id})
         # 履歴を削除
-        history_result = await self.history_collection.delete_one({"session_id": session_id})
+        # history_result = await self.history_collection.delete_one({"session_id": session_id})
         
-        return session_result.deleted_count > 0 or history_result.deleted_count > 0
+        return session_result.deleted_count > 0
     
     async def get_user_sessions(
         self, 
