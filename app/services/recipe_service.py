@@ -63,3 +63,33 @@ class RecipeService:
     def get_processes_by_recipe_id(self, recipe_id: int) -> List[Process]:
         """指定されたレシピIDの調理手順を取得"""
         return self.db.query(Process).filter(Process.recipe_id == recipe_id).all()
+    
+    async def create_recipe(self, recipe: Recipe) -> Recipe:
+        """新しいレシピを作成"""
+        self.db.add(recipe)
+        self.db.commit()
+        self.db.refresh(recipe)
+        return recipe
+    
+    async def create_user_recipe(self, user_recipe: UserRecipe) -> UserRecipe:
+        """ユーザーレシピを作成"""
+        self.db.add(user_recipe)
+        self.db.commit()
+        self.db.refresh(user_recipe)
+        return user_recipe
+    
+    async def create_ingredients(self, ingredients: List[Ingredient]) -> List[Ingredient]:
+        """材料を一括で作成"""
+        self.db.add_all(ingredients)
+        self.db.commit()
+        for ingredient in ingredients:
+            self.db.refresh(ingredient)
+        return ingredients
+    
+    async def create_processes(self, processes: List[Process]) -> List[Process]:
+        """調理手順を一括で作成"""
+        self.db.add_all(processes)
+        self.db.commit()
+        for process in processes:
+            self.db.refresh(process)
+        return processes
