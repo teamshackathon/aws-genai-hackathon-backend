@@ -1,11 +1,11 @@
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.models.user import Users
-from app.schemas.recipe import ExternalService, Recipe, RecipeList, RecipeStatus
+from app.schemas.recipe import ExternalService, Ingredient, Process, Recipe, RecipeList, RecipeStatus
 from app.services.recipe_service import RecipeService
 
 router = APIRouter()
@@ -76,3 +76,31 @@ def get_recipe_by_id(
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
     return recipe
+
+@router.get("/{recipe_id}/ingredients", response_model=List[Ingredient])
+def get_ingredients_by_recipe_id(
+    recipe_id: int,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> List[Ingredient]:
+    """
+    指定されたレシピIDの材料を取得します。
+    """
+    ingredients = recipe_service.get_ingredient_by_recipe_id(recipe_id)
+    if not ingredients:
+        raise HTTPException(status_code=404, detail="Ingredients not found for this recipe")
+    return ingredients
+
+@router.get("/{recipe_id}/processes", response_model=List[Process])
+def get_processes_by_recipe_id(
+    recipe_id: int,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> List[Process]:
+    """
+    指定されたレシピIDの調理手順を取得します。
+    """
+    processes = recipe_service.get_processes_by_recipe_id(recipe_id)
+    if not processes:
+        raise HTTPException(status_code=404, detail="Processes not found for this recipe")
+    return processes
