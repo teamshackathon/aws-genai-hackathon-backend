@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core.websocket_manager import ws_manager
+from app.models.recipe import Ingredient, Process, Recipe
 from app.models.user import Users
+from app.models.user_recipe import UserRecipe
 from app.schemas.mongo import WebSocketMessage
 from app.services.mongodb_recipe_generation_service import MongoDBRecipeGenerationService
+from app.services.recipe_service import RecipeService
 from app.services.redis_queue_service import RedisQueueService
 
 logger = logging.getLogger(__name__)
@@ -32,6 +35,18 @@ def get_redis_queue_service(
         raise HTTPException(
             status_code=500,
             detail=f"Redisキューサービスの初期化に失敗しました: {str(e)}"
+        )
+    
+def get_recipe_service(db: Session = Depends(deps.get_db)) -> RecipeService:
+    """
+    レシピサービスの依存関係を取得します。
+    """
+    try:
+        return RecipeService(db=db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"レシピサービスの初期化に失敗しました: {str(e)}"
         )
 
 
@@ -269,7 +284,7 @@ async def recipe_gen_celery(
     websocket: WebSocket,
     session_id: Optional[str] = Query(None, description="Session ID for the recipe generation"),
     mongodb: AsyncIOMotorDatabase = Depends(deps.get_mongodb),
-    db: Session = Depends(deps.get_db),
+    recipe_service: RecipeService = Depends(get_recipe_service),
 ):
     """
     Celery接続用のWebSocketエンドポイント
@@ -323,7 +338,58 @@ async def recipe_gen_celery(
                 await ws_manager.send_personal_message(message_data, session_id)
 
                 if message_data.get("type") == "task_completed":
+
+
+                    # レシピの作成
+                    results = message_data.get("data", {}).get("result", {})
+                    logger.info(f"Processing task completed results: {results}")
+                    if results:
+                        
+                        recipe = await recipe_service.create_recipe(
+                            Recipe(
+                                recipe_name=results.get("recipes", {}).get("recipe_name", "No Recipe Name"),
+                                url=results.get("recipes", {}).get("url", ""),
+                                status_id=1,  # デフォルトステータスは「生成後」
+                                external_service_id=results.get("recipes", {}).get("external_service_id", None)
+                            )
+                        )
+
+                        logger.info(f"Recipe created: {recipe.id}")
+
+                        user_recipe = await recipe_service.create_user_recipe(
+                            UserRecipe(
+                                user_id=results.get("user_recipes", {}).get("user_id", None),
+                                recipe_id=recipe.id,
+                                is_favorite=False  # デフォルトはお気に入りではない
+                            )
+                        )
+
+                        logger.info(f"UserRecipe created: {user_recipe.id}")
+
+                        # 材料の作成
+                        ingredients = await recipe_service.create_ingredients(
+                            [Ingredient(
+                                recipe_id=recipe.id,
+                                ingredient=ing.get("ingredient", ""),
+                                amount=ing.get("amount", ""),
+                            ) for ing in results.get("ingredients", [])]
+                        )
+
+                        logger.info(f"Ingredients created: {[ing.id for ing in ingredients]}")
+
+                        # 調理手順の作成
+                        processes = await recipe_service.create_processes(
+                            [Process(
+                                recipe_id=recipe.id,
+                                process=proc.get("process", ""),
+                                process_number=proc.get("process_number", "")
+                            ) for proc in results.get("processes", [])]
+                        )
+
+                        logger.info(f"Processes created: {[proc.id for proc in processes]}")
+
                     await mongo_service.delete_session(session_id)
+
 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error: {str(e)}")
