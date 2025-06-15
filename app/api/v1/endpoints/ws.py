@@ -264,6 +264,101 @@ async def recipe_gen(
         except Exception as e:
             logger.error(f"Cleanup error: {str(e)}")
 
+@router.websocket("/recipe-gen/celery")
+async def recipe_gen_celery(
+    websocket: WebSocket,
+    session_id: Optional[str] = Query(None, description="Session ID for the recipe generation"),
+    mongodb: AsyncIOMotorDatabase = Depends(deps.get_mongodb),
+    db: Session = Depends(deps.get_db),
+):
+    """
+    Celery接続用のWebSocketエンドポイント
+    """
+    logger.warning(f"WebSocket connection request: session_id={session_id}")
+
+    if session_id is None or session_id == "":
+        logger.error("Session ID is required for Celery WebSocket connection")
+        await websocket.close(code=1008, reason="Session ID is required")
+        return
+    
+    mongo_service = MongoDBRecipeGenerationService(mongodb)
+    
+    try:
+        existing_session = await mongo_service.get_session(session_id)
+        if not existing_session:
+            logger.error(f"Session not found: {session_id}")
+            await websocket.close(code=1008, reason="Invalid session ID")
+            return
+    except Exception as e:
+        logger.error(f"Error retrieving session: {str(e)}")
+        await websocket.close(code=1011, reason="Session retrieval error")  
+        return
+    
+    # WebSocket接続をマネージャーに登録
+    connection_id = await ws_manager.connect(websocket, session_id)
+    logger.info(f"WebSocket connected: connection_id={connection_id}, session_id={session_id}")
+
+    # celeryからのメッセージ受信ループ
+    try:
+        while True:
+            raw_data = await websocket.receive_text()
+            logger.info(f"Received message: {raw_data}")
+
+            try:
+                message_data = json.loads(raw_data)
+                logger.info(f"Parsed message data: {message_data}")
+
+                # Celeryからのメッセージをセッション履歴に保存
+                await mongo_service.add_message_to_history(
+                    session_id=session_id,
+                    message_type="system_response",
+                    content=message_data.get("content", raw_data),
+                    metadata={
+                        "raw_data": message_data,
+                        "connection_id": connection_id
+                    }
+                )
+
+                # メッセージをWebSocketで送信
+                await ws_manager.send_personal_message(message_data, session_id)
+
+                if message_data.get("type") == "task_completed":
+                    await mongo_service.delete_session(session_id)
+
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {str(e)}")
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": "Invalid JSON format"},
+                    "session_id": session_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"Message processing error: {str(e)}")
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": f"Message processing error: {str(e)}"},
+                    "session_id": session_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for session: {session_id}")
+        ws_manager.disconnect(connection_id, session_id)
+    finally:
+        # クリーンアップ処理
+        try:
+            if 'connection_id' in locals() and 'session_id' in locals():
+                ws_manager.disconnect(connection_id, session_id)
+                if 'mongo_service' in locals():
+                    await mongo_service.add_message_to_history(
+                        session_id=session_id,
+                        message_type="system_response",
+                        content="Celery接続が切断されました。",
+                        metadata={"connection_id": connection_id}
+                    )
+        except Exception as e:
+            logger.error(f"Cleanup error: {str(e)}")
+
 async def send_session_history(websocket: WebSocket, mongo_service: MongoDBRecipeGenerationService, session_id: str):
     """セッション履歴を送信"""
     try:
