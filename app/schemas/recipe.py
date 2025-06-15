@@ -71,13 +71,17 @@ class IngredientBase(BaseModel):
 
 class IngredientCreate(IngredientBase):
     """材料作成スキーマ"""
-    recipe_id: Optional[int] = None  # 一括作成時はレシピIDが不要
+    recipe_id: Optional[int]
+    created_date: Optional[datetime] = datetime.utcnow()
+    updated_date: Optional[datetime] = datetime.utcnow()
 
 
 class IngredientUpdate(BaseModel):
     """材料更新スキーマ"""
     ingredient: Optional[str] = Field(None, description="材料名")
     amount: Optional[str] = Field(None, description="量（単位付き）")
+    updated_date: Optional[datetime] = datetime.utcnow()
+
 
 
 class Ingredient(IngredientBase):
@@ -102,7 +106,9 @@ class ProcessBase(BaseModel):
 
 class ProcessCreate(ProcessBase):
     """調理工程作成スキーマ"""
-    recipe_id: Optional[int] = None  # 一括作成時はレシピIDが不要
+    recipe_id: Optional[int]
+    created_date: Optional[datetime] = datetime.utcnow()
+    updated_date: Optional[datetime] = datetime.utcnow()
 
 
 class ProcessUpdate(BaseModel):
@@ -135,6 +141,8 @@ class RecipeCreate(RecipeBase):
     """レシピ作成スキーマ"""
     status_id: int = Field(1, description="ステータスID（デフォルトは「生成前」）")
     external_service_id: Optional[int] = Field(None, description="抽出元サービスID")
+    created_date: Optional[datetime] = datetime.utcnow()
+    updated_date: Optional[datetime] = datetime.utcnow()
 
 
 class RecipeUpdate(BaseModel):
