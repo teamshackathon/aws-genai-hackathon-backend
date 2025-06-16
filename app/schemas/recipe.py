@@ -137,6 +137,7 @@ class RecipeBase(BaseModel):
     url: Optional[str] = Field(None, description="抽出元URL")
 
 
+
 class RecipeCreate(RecipeBase):
     """レシピ作成スキーマ"""
     status_id: int = Field(1, description="ステータスID（デフォルトは「生成前」）")
@@ -167,7 +168,7 @@ class RecipeInDBBase(RecipeBase):
 
 class Recipe(RecipeInDBBase):
     """レシピ応答基本スキーマ"""
-    pass
+    is_favorite: Optional[bool] = Field(False, description="お気に入りフラグ")
 
 
 # ---------------
@@ -211,6 +212,7 @@ class UserRecipeCreate(UserRecipeBase):
 class UserRecipeUpdate(BaseModel):
     """ユーザーレシピ関連更新スキーマ"""
     is_favorite: Optional[bool] = Field(None, description="お気に入りフラグ")
+    updated_at: Optional[datetime] = datetime.utcnow()
 
 
 class UserRecipe(UserRecipeBase):
