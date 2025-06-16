@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -14,12 +15,15 @@ class RecipeService:
 
     def get_recipe_by_id(self, recipe_id: int, user_id: int) -> Recipe:
         """指定されたIDのレシピを取得"""
-        recipe = self.db.query(Recipe).join(UserRecipe).filter(
+        result = self.db.query(Recipe, UserRecipe.is_favorite).join(UserRecipe).filter(
             Recipe.id == recipe_id,
             UserRecipe.user_id == user_id
         ).first()
-        if recipe is None:
+        
+        if result is None:
             raise ValueError(f"Recipe with id {recipe_id} not found for user {user_id}")
+        recipe, is_favorite = result
+        recipe.is_favorite = is_favorite  # 手動で属性に注入
         return recipe
     
     # pagenation付きのレシピ一覧を取得
@@ -32,19 +36,25 @@ class RecipeService:
         favorites_only: bool = False
     ) -> RecipeList:
         """レシピの一覧を取得"""
-        query = self.db.query(Recipe).join(UserRecipe).filter(
+        query = self.db.query(Recipe, UserRecipe.is_favorite).join(UserRecipe).filter(
             UserRecipe.user_id == user_id
         )
 
         if keyword:
-            query = query.filter(Recipe.title.ilike(f"%{keyword}%"))
+            query = query.filter(Recipe.recipe_name.ilike(f"%{keyword}%"))
 
         if favorites_only:
             query = query.filter(UserRecipe.is_favorite.is_(True))
 
         total_count = query.count()
-        recipes = query.offset((page - 1) * per_page).limit(per_page).all()
+        results = query.offset((page - 1) * per_page).limit(per_page).all()
         pages = (total_count + per_page - 1) // per_page
+
+        recipes = []
+
+        for recipe, is_favorite in results:
+            recipe.is_favorite = is_favorite  # Inject the value manually
+            recipes.append(recipe)
 
         return RecipeList(items=recipes, total=total_count, page=page, per_page=per_page, pages=pages)
     
@@ -93,3 +103,34 @@ class RecipeService:
         for process in processes:
             self.db.refresh(process)
         return processes
+    
+    def update_recipe(self, recipe:Recipe) -> Recipe:
+        """既存のレシピを更新"""
+        self.db.merge(recipe)
+        self.db.commit()
+        self.db.refresh(recipe)
+        return recipe
+    
+    def get_user_recipe(self, user_id: int, recipe_id: int) -> UserRecipe:
+        """ユーザーレシピを取得"""
+        user_recipe = self.db.query(UserRecipe).filter(
+            UserRecipe.user_id == user_id,
+            UserRecipe.recipe_id == recipe_id
+        ).first()
+        if user_recipe is None:
+            raise ValueError(f"UserRecipe with user_id {user_id} and recipe_id {recipe_id} not found")
+        return user_recipe
+    
+    def update_user_recipe(self, user_id: int, recipe_id: int, is_favorite: bool) -> UserRecipe:
+        """ユーザーレシピを更新"""
+        db_user_recipe = self.db.query(UserRecipe).filter(
+            UserRecipe.user_id == user_id,
+            UserRecipe.recipe_id == recipe_id
+        ).first()
+        if db_user_recipe is None:
+            raise ValueError(f"UserRecipe with user_id {user_id} and recipe_id {recipe_id} not found")
+        db_user_recipe.is_favorite = is_favorite
+        db_user_recipe.updated_date = datetime.utcnow()
+        self.db.commit()
+        self.db.refresh(db_user_recipe)
+        return db_user_recipe
