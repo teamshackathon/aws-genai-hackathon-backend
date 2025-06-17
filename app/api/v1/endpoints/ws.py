@@ -74,6 +74,30 @@ async def get_my_session(
     except Exception as e:
         logger.error(f"Error retrieving session for user {current_user.id}: {str(e)}")
         return None
+    
+@router.get("/session-history")
+async def get_session_history(
+    current_user: Users = Depends(deps.get_current_user),
+    mongodb: AsyncIOMotorDatabase = Depends(deps.get_mongodb)
+):
+    """
+    セッションの履歴を取得するエンドポイント
+    """
+
+    mongo_service = MongoDBRecipeGenerationService(mongodb)
+
+    try:
+        history = await mongo_service.get_user_session_history(current_user.id)
+        if not history:
+            logger.warning(f"No history found for session_id: {current_user.id}")
+            return []
+
+        logger.info(f"History found for session_id {current_user.id}: {len(history)} messages")
+        return history
+
+    except Exception as e:
+        logger.error(f"Error retrieving history for session_id {current_user.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve session history")
 
 @router.websocket("/recipe-gen")
 async def recipe_gen(
@@ -173,16 +197,6 @@ async def recipe_gen(
                 user_id=user.id
             )
 
-            await ws_manager.send_personal_message({
-                "type": "system_response",
-                "data": {
-                    "content": "BAE-RECIPE AIにて動画からレシピを開始します。",
-                    "session_id": session_id,
-                    "task_id": task_id,
-                },
-                "timestamp": datetime.utcnow().isoformat()
-            }, session_id)
-
             # タスクIDをセッションに保存
             await mongo_service.add_message_to_history(
                 session_id=session_id,
@@ -191,7 +205,7 @@ async def recipe_gen(
                 metadata={
                     "connection_id": connection_id,
                     "user_id": user.id,
-                    "task_id": task_id
+                    # "task_id": task_id
                 }
             )
         else:
@@ -226,24 +240,6 @@ async def recipe_gen(
                     logger.info(f"Parsed message data: {message_data}")
                     ws_message = WebSocketMessage(**message_data)
                     logger.info(f"Parsed WebSocket message: {ws_message}")
-                    
-                    # メッセージを履歴に保存
-                    # message_id = await mongo_service.add_message_to_history(
-                    #     session_id=session_id,
-                    #     message_type="user_input",
-                    #     content=ws_message.data.get("content", raw_data),
-                    #     metadata={
-                    #         "message_type": ws_message.type,
-                    #         "raw_data": message_data,
-                    #         "user_id": user.id
-                    #     }
-                    # )
-                    
-                    # エコーレスポンス（実際の処理に置き換える）
-                    # await send_response(websocket, mongo_service, session_id, "message_received", {
-                    #     "message_id": message_id,
-                    #     "content": ws_message.data.get("content", raw_data)
-                    # })
                     
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON decode error: {str(e)}")
@@ -326,8 +322,8 @@ async def recipe_gen_celery(
                 # Celeryからのメッセージをセッション履歴に保存
                 await mongo_service.add_message_to_history(
                     session_id=session_id,
-                    message_type="system_response",
-                    content=message_data.get("content", raw_data),
+                    message_type=message_data.get("type", "system_response"),
+                    content=message_data.get("data", {}).get("content", raw_data),
                     metadata={
                         "raw_data": message_data,
                         "connection_id": connection_id
@@ -338,7 +334,6 @@ async def recipe_gen_celery(
                 await ws_manager.send_personal_message(message_data, session_id)
 
                 if message_data.get("type") == "task_completed":
-
 
                     # レシピの作成
                     results = message_data.get("data", {}).get("result", {})
@@ -388,6 +383,10 @@ async def recipe_gen_celery(
 
                         logger.info(f"Processes created: {[proc.id for proc in processes]}")
 
+                    await mongo_service.delete_session(session_id)
+
+                if message_data.get("type") == "task_failed":
+                    logger.error(f"Task failed for session {session_id}: {message_data.get('data', {}).get('error', 'Unknown error')}")
                     await mongo_service.delete_session(session_id)
 
 
