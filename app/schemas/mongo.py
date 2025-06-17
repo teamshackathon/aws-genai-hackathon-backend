@@ -63,6 +63,7 @@ class SessionHistoryDocument(BaseModel):
     
     id: Optional[PyObjectId] = Field(default_factory=ObjectId, alias="_id", description="MongoDB ObjectId")
     session_id: str = Field(..., description="セッションID")
+    user_id: Optional[int] = Field(None, description="ユーザーID（PostgreSQL）")
     messages: List[SessionHistoryMessage] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
