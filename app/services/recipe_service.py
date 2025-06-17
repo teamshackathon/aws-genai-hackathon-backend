@@ -15,16 +15,14 @@ class RecipeService:
 
     def get_recipe_by_id(self, recipe_id: int, user_id: int) -> Recipe:
         """指定されたIDのレシピを取得"""
-        result = self.db.query(Recipe, UserRecipe.is_favorite).join(UserRecipe).filter(
+        result = self.db.query(Recipe).join(UserRecipe).filter(
             Recipe.id == recipe_id,
             UserRecipe.user_id == user_id
         ).first()
         
         if result is None:
             raise ValueError(f"Recipe with id {recipe_id} not found for user {user_id}")
-        recipe, is_favorite = result
-        recipe.is_favorite = is_favorite  # 手動で属性に注入
-        return recipe
+        return result
     
     # pagenation付きのレシピ一覧を取得
     def get_recipes(
@@ -36,7 +34,7 @@ class RecipeService:
         favorites_only: bool = False
     ) -> RecipeList:
         """レシピの一覧を取得"""
-        query = self.db.query(Recipe, UserRecipe.is_favorite).join(UserRecipe).filter(
+        query = self.db.query(Recipe).join(UserRecipe).filter(
             UserRecipe.user_id == user_id
         )
 
@@ -50,13 +48,7 @@ class RecipeService:
         results = query.offset((page - 1) * per_page).limit(per_page).all()
         pages = (total_count + per_page - 1) // per_page
 
-        recipes = []
-
-        for recipe, is_favorite in results:
-            recipe.is_favorite = is_favorite  # Inject the value manually
-            recipes.append(recipe)
-
-        return RecipeList(items=recipes, total=total_count, page=page, per_page=per_page, pages=pages)
+        return RecipeList(items=results, total=total_count, page=page, per_page=per_page, pages=pages)
     
     def get_external_services(self) -> List[ExternalService]:
         """外部サービスの一覧を取得"""
@@ -120,6 +112,20 @@ class RecipeService:
         if user_recipe is None:
             raise ValueError(f"UserRecipe with user_id {user_id} and recipe_id {recipe_id} not found")
         return user_recipe
+    
+    def get_user_recipes(self, user_id: int) -> List[UserRecipe]:
+        """ユーザーレシピの一覧を取得"""
+        return self.db.query(UserRecipe).filter(UserRecipe.user_id == user_id).all()
+    
+    def get_user_recipes_by_ids(self, user_id: int, recipe_ids: List[int]) -> List[UserRecipe]:
+        """ユーザーレシピのIDリストからレシピを取得"""
+        if not recipe_ids:
+            return []
+
+        return self.db.query(UserRecipe).filter(
+            UserRecipe.user_id == user_id,
+            UserRecipe.recipe_id.in_(recipe_ids)
+        ).all()
     
     def update_user_recipe(self, user_id: int, recipe_id: int, is_favorite: bool) -> UserRecipe:
         """ユーザーレシピを更新"""
