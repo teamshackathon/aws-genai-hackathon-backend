@@ -28,7 +28,7 @@ class MongoDBRecipeGenerationService:
         session_doc.id = result.inserted_id
         
         # session_historyコレクションも初期化
-        history_doc = SessionHistoryDocument(session_id=session_id)
+        history_doc = SessionHistoryDocument(session_id=session_id, user_id=user_id)
         await self.history_collection.insert_one(history_doc.dict(by_alias=True))
         
         return session_doc
@@ -99,6 +99,16 @@ class MongoDBRecipeGenerationService:
         """セッション履歴を取得"""
         doc = await self.history_collection.find_one({"session_id": session_id})
         return SessionHistoryDocument(**doc) if doc else None
+    
+    async def get_user_session_history(
+        self, 
+        user_id: int,
+    ) -> List[SessionHistoryDocument]:
+        """ユーザーのセッション履歴をすべて取得"""
+        docs = await self.history_collection.find(
+            {"user_id": user_id}
+        ).to_list(length=None)
+        return [SessionHistoryDocument(**doc) for doc in docs]
     
     async def get_session_messages(self, session_id: str) -> List[SessionHistoryMessage]:
         """セッションのメッセージリストを取得"""
