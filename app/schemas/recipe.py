@@ -249,3 +249,8 @@ class RecipeList(BaseModel):
     page: int
     per_page: int
     pages: int
+
+class VoiceReaderInput(BaseModel):
+    """Input schema for voice chat"""
+
+    text: str = Field(..., description="Text to be converted to speech")
