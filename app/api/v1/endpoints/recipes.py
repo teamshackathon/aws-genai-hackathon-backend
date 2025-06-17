@@ -1,11 +1,13 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.aws.polly_client import PollyClient
 from app.models.user import Users
-from app.schemas.recipe import ExternalService, Ingredient, Process, Recipe, RecipeList, RecipeStatus
+from app.schemas.recipe import ExternalService, Ingredient, Process, Recipe, RecipeList, RecipeStatus, VoiceReaderInput
 from app.services.recipe_service import RecipeService
 
 router = APIRouter()
@@ -20,6 +22,16 @@ def get_recipe_service(db: Session = Depends(deps.get_db)) -> RecipeService:
         raise HTTPException(
             status_code=500,
             detail=f"レシピサービスの初期化に失敗しました: {str(e)}"
+        )
+
+def get_polly_client():
+    """Amazon Polly clientを取得"""
+    try:
+        polly_client = PollyClient()
+        return polly_client.get_client()
+    except ValueError:
+        raise HTTPException(
+            status_code=500, detail="Failed to initialize Amazon Polly client. Please check AWS credentials."
         )
 
 # ページネーション付きのレシピ一覧を取得
@@ -104,3 +116,42 @@ def get_processes_by_recipe_id(
     if not processes:
         raise HTTPException(status_code=404, detail="Processes not found for this recipe")
     return processes
+
+@router.post("/process/voice_reader")
+def read_process_voice(
+    input: VoiceReaderInput,
+    polly_client=Depends(get_polly_client),
+    current_user: Users = Depends(deps.get_current_user)
+):
+    """
+    指定されたテキストを音声で読み上げます。
+    """
+    if not input.text:
+        raise HTTPException(
+            status_code=400, detail="音声化するテキストが指定されていません。"
+        )
+    
+    try:
+        # Amazon Pollyを使用して音声を生成
+        response = polly_client.synthesize_speech(
+            Text=input.text,
+            OutputFormat='mp3',
+            VoiceId="Takumi",  # 日本語の音声を使用
+            LanguageCode='ja-JP'
+        )
+
+        audio_stream = response.get("AudioStream")
+        if not audio_stream:
+            raise HTTPException(
+                status_code=500, detail="音声の生成に失敗しました。"
+            )
+        return StreamingResponse(
+            audio_stream,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=voice.mp3"}
+        )
+    except Exception as e:
+        print(f"音声生成に失敗しました: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"音声生成に失敗しました。{str(e)}"
+        )
