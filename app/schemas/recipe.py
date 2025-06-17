@@ -168,7 +168,7 @@ class RecipeInDBBase(RecipeBase):
 
 class Recipe(RecipeInDBBase):
     """レシピ応答基本スキーマ"""
-    is_favorite: Optional[bool] = Field(False, description="お気に入りフラグ")
+    pass
 
 
 # ---------------
@@ -212,14 +212,14 @@ class UserRecipeCreate(UserRecipeBase):
 class UserRecipeUpdate(BaseModel):
     """ユーザーレシピ関連更新スキーマ"""
     is_favorite: Optional[bool] = Field(None, description="お気に入りフラグ")
-    updated_at: Optional[datetime] = datetime.utcnow()
+    updated_date: Optional[datetime] = datetime.utcnow()
 
 
 class UserRecipe(UserRecipeBase):
     """ユーザーレシピ関連応答スキーマ"""
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_date: datetime
+    updated_date: datetime
 
     class Config:
         from_attributes = True
