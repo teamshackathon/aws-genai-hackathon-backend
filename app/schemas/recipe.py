@@ -135,6 +135,8 @@ class RecipeBase(BaseModel):
     """レシピの基本スキーマ"""
     recipe_name: str = Field(..., description="料理名")
     url: Optional[str] = Field(None, description="抽出元URL")
+    keyword: Optional[str] = Field(None, description="検索キーワード")
+    genrue: Optional[str] = Field(None, description="ジャンル")
 
 
 
