@@ -11,3 +11,6 @@ from app.models.user_recipe import UserRecipe # noqa
 
 # Userモデルをインポート
 from app.models.user import Users # noqa
+
+# Shoppingモデルをインポート
+from app.models.shopping import UserShopping, ShoppingItem # noqa
