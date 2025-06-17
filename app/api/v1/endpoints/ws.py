@@ -179,6 +179,7 @@ async def recipe_gen(
                     "session_id": session_id,
                     "connection_id": connection_id,
                     "status": current_session.status,
+                    "progress": 0,
                 },
                 "timestamp": datetime.utcnow().isoformat()
             }, session_id)
@@ -337,51 +338,96 @@ async def recipe_gen_celery(
 
                     # レシピの作成
                     results = message_data.get("data", {}).get("result", {})
+                    keywords = message_data.get("data", {}).get("keywords", {})
+                    genrue = message_data.get("data", {}).get("genrue", "")
+                    recipe_name = message_data.get("data", {}).get("recipe_name", "No Recipe Name")
                     logger.info(f"Processing task completed results: {results}")
                     if results:
+
+                        try:
                         
-                        recipe = await recipe_service.create_recipe(
-                            Recipe(
-                                recipe_name=results.get("recipes", {}).get("recipe_name", "No Recipe Name"),
-                                url=results.get("recipes", {}).get("url", ""),
-                                status_id=1,  # デフォルトステータスは「生成後」
-                                external_service_id=results.get("recipes", {}).get("external_service_id", None)
+                            recipe = await recipe_service.create_recipe(
+                                Recipe(
+                                    recipe_name=recipe_name,
+                                    url=results.get("recipes", {}).get("url", ""),
+                                    status_id=1,  # デフォルトステータスは「生成後」
+                                    external_service_id=results.get("recipes", {}).get("external_service_id", None),
+                                    keyword=','.join(keywords),
+                                    genrue=genrue,
+                                )
                             )
-                        )
 
-                        logger.info(f"Recipe created: {recipe.id}")
+                            logger.info(f"Recipe created: {recipe.id}")
 
-                        user_recipe = await recipe_service.create_user_recipe(
-                            UserRecipe(
-                                user_id=results.get("user_recipes", {}).get("user_id", None),
-                                recipe_id=recipe.id,
-                                is_favorite=False  # デフォルトはお気に入りではない
+                            user_recipe = await recipe_service.create_user_recipe(
+                                UserRecipe(
+                                    user_id=results.get("user_recipes", {}).get("user_id", None),
+                                    recipe_id=recipe.id,
+                                    is_favorite=False  # デフォルトはお気に入りではない
+                                )
                             )
-                        )
 
-                        logger.info(f"UserRecipe created: {user_recipe.id}")
+                            logger.info(f"UserRecipe created: {user_recipe.id}")
 
-                        # 材料の作成
-                        ingredients = await recipe_service.create_ingredients(
-                            [Ingredient(
-                                recipe_id=recipe.id,
-                                ingredient=ing.get("ingredient", ""),
-                                amount=ing.get("amount", ""),
-                            ) for ing in results.get("ingredients", [])]
-                        )
+                            # 材料の作成
+                            ingredients = await recipe_service.create_ingredients(
+                                [Ingredient(
+                                    recipe_id=recipe.id,
+                                    ingredient=ing.get("ingredient", ""),
+                                    amount=ing.get("amount", ""),
+                                ) for ing in results.get("ingredients", [])]
+                            )
 
-                        logger.info(f"Ingredients created: {[ing.id for ing in ingredients]}")
+                            logger.info(f"Ingredients created: {[ing.id for ing in ingredients]}")
 
-                        # 調理手順の作成
-                        processes = await recipe_service.create_processes(
-                            [Process(
-                                recipe_id=recipe.id,
-                                process=proc.get("process", ""),
-                                process_number=proc.get("process_number", "")
-                            ) for proc in results.get("processes", [])]
-                        )
+                            # 調理手順の作成
+                            processes = await recipe_service.create_processes(
+                                [Process(
+                                    recipe_id=recipe.id,
+                                    process=proc.get("process", ""),
+                                    process_number=proc.get("process_number", "")
+                                ) for proc in results.get("processes", [])]
+                            )
 
-                        logger.info(f"Processes created: {[proc.id for proc in processes]}")
+                            logger.info(f"Processes created: {[proc.id for proc in processes]}")
+
+                            # 完了通知をmongoに保存
+                            await mongo_service.add_message_to_history(
+                                session_id=session_id,
+                                message_type="all_tasks_completed",
+                                content="レシピの生成が完了しました。",
+                                metadata={
+                                    "recipe_id": recipe.id,
+                                    "user_recipe_id": user_recipe.id,
+                                    "ingredients": [ing.id for ing in ingredients],
+                                    "processes": [proc.id for proc in processes],
+                                    "connection_id": connection_id
+                                }
+                            )
+                            await ws_manager.send_personal_message({
+                                "type": "all_tasks_completed",
+                                "data": {
+                                    "recipe_id": recipe.id,
+                                    "user_recipe_id": user_recipe.id,
+                                    "ingredients": [ing.id for ing in ingredients],
+                                    "processes": [proc.id for proc in processes],
+                                    "recipe_name": recipe.recipe_name,
+                                    "status": recipe.status_id,
+                                    "connection_id": connection_id,
+                                    "progress": 100,
+                                    "content": "レシピの生成が完了しました。",
+                                },
+                                "session_id": session_id,
+                                "timestamp": datetime.utcnow().isoformat()
+                            }, session_id)
+
+                            await mongo_service.delete_session(session_id)
+                        
+                        except Exception as e:
+                            logger.error(f"Error creating recipe or related data: {str(e)}")
+                            await send_error_message(websocket, mongo_service, session_id, f"Error creating recipe: {str(e)}")
+                            await mongo_service.delete_session(session_id)
+                            return
 
                     await mongo_service.delete_session(session_id)
 
