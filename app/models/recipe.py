@@ -44,6 +44,8 @@ class Recipe(Base):
     status_id = Column(Integer, ForeignKey("recipe_status.id"), nullable=False)
     external_service_id = Column(Integer, ForeignKey("external_services.id"), nullable=True, comment="抽出元サービスID")
     url = Column(String(512), nullable=True, comment="抽出元URL")
+    keyword = Column(String(1024), nullable=True, comment="検索キーワード")
+    genrue = Column(String(256), nullable=True, comment="ジャンル")
     created_date = Column(DateTime, default=func.now(), nullable=False)
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     recipe_name = Column(String(256), nullable=False, comment="料理名")
