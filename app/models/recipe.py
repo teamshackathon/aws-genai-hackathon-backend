@@ -1,5 +1,4 @@
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base_class import Base
@@ -55,11 +54,6 @@ class Recipe(Base):
     # status = relationship("RecipeStatus", back_populates="recipes")
     # external_service = relationship("ExternalService", back_populates="recipes")
     
-    # 拡張リレーションシップ
-    ingredients = relationship("Ingredient", back_populates="recipe", cascade="all, delete-orphan")
-    processes = relationship("Process", back_populates="recipe", cascade="all, delete-orphan")
-    user_recipes = relationship("UserRecipe", back_populates="recipe", cascade="all, delete-orphan")
-    
     def __repr__(self):
         return f"<Recipe(id={self.id}, name={self.recipe_name})>"
 
@@ -75,9 +69,6 @@ class Ingredient(Base):
     created_date = Column(DateTime, default=func.now(), nullable=False)
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     
-    # リレーションシップ
-    recipe = relationship("Recipe", back_populates="ingredients")
-    shopping_items = relationship("ShoppingItem", back_populates="ingredient_obj")
     
     def __repr__(self):
         return f"<Ingredient(id={self.id}, ingredient={self.ingredient}, amount={self.amount})>"

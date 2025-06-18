@@ -1,5 +1,4 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base_class import Base
@@ -16,10 +15,7 @@ class UserShopping(Base):
     created_date = Column(DateTime, default=func.now(), nullable=False, comment="作成日時")
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, comment="更新日時")
     
-    owner = relationship("Users", back_populates="user_shoppings") # Usersモデルへのリレーション
-    related_recipe = relationship("Recipe", back_populates="user_shoppings") # Recipeモデルへのリレーション
-    items = relationship("ShoppingItem", back_populates="user_shopping_list") # ShoppingItemへのリレーション (back_populates名を調整)
-
+    
 class ShoppingItem(Base):
     """ショッピングアイテムモデル"""
     __tablename__ = "shopping_items"
@@ -31,5 +27,4 @@ class ShoppingItem(Base):
     created_date = Column(DateTime, default=func.now(), nullable=False, comment="作成日時")
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, comment="更新日時")
 
-    user_shopping_list = relationship("UserShopping", back_populates="items") # UserShoppingへのリレーション (back_populates名を調整)
-    ingredient_obj = relationship("Ingredient", back_populates="shopping_items") # Ingredientモデルへのリレーション (back_populates名を調整)
+   
