@@ -341,6 +341,7 @@ async def recipe_gen_celery(
                     keywords = message_data.get("data", {}).get("keywords", {})
                     genrue = message_data.get("data", {}).get("genrue", "")
                     recipe_name = message_data.get("data", {}).get("recipe_name", "No Recipe Name")
+                    embedding = message_data.get("data", {}).get("embedding", None)
                     logger.info(f"Processing task completed results: {results}")
                     if results:
 
@@ -354,6 +355,7 @@ async def recipe_gen_celery(
                                     external_service_id=results.get("recipes", {}).get("external_service_id", None),
                                     keyword=','.join(keywords),
                                     genrue=genrue,
+                                    embedding=embedding,
                                 )
                             )
 
