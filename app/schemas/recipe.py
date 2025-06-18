@@ -204,6 +204,8 @@ class UserRecipeBase(BaseModel):
     user_id: int = Field(..., description="ユーザーID")
     recipe_id: int = Field(..., description="レシピID")
     is_favorite: bool = Field(False, description="お気に入りフラグ")
+    note: Optional[str] = Field(None, description="ユーザーのメモ")
+    rating: Optional[int] = Field(None, ge=1, le=5, description="ユーザー評価（1〜5）")
 
 
 class UserRecipeCreate(UserRecipeBase):
