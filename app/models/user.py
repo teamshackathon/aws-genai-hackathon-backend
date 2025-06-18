@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base_class import Base
@@ -42,6 +43,9 @@ class Users(Base):
     # 認証トークン (リフレッシュトークンなどの保存用)
     refresh_token = Column(String, nullable=True)
     token_expires = Column(DateTime, nullable=True)
+
+    # UserShopping（買い物リスト）
+    user_shoppings = relationship("UserShopping", back_populates="owner") # back_populatesはUserShoppingクラスに定義する
 
     @property
     def display_name(self):
