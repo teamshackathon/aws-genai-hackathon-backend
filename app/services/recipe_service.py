@@ -38,8 +38,13 @@ class RecipeService:
             UserRecipe.user_id == user_id
         )
 
+        # フィルタリング条件の適用
         if keyword:
-            query = query.filter(Recipe.recipe_name.ilike(f"%{keyword}%"))
+            query = query.filter(
+                (Recipe.recipe_name.ilike(f"%{keyword}%")) |
+                (Recipe.keyword.ilike(f"%{keyword}%")) |
+                (Recipe.genrue.ilike(f"%{keyword}%"))
+            )
 
         if favorites_only:
             query = query.filter(UserRecipe.is_favorite.is_(True))
