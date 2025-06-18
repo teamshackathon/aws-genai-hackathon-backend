@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .endpoints import auth, file, healthcheck, recipes, user, ws
+from .endpoints import auth, blob, healthcheck, recipes, user, ws
 
 api_router = APIRouter()
 
@@ -14,5 +14,5 @@ api_router.include_router(
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(user.router, prefix="/users", tags=["users"])
 api_router.include_router(recipes.router, prefix="/recipes", tags=["recipes"])
-api_router.include_router(file.router, prefix="/files", tags=["files"])
 api_router.include_router(ws.router, prefix="/ws", tags=["websocket"])
+api_router.include_router(blob.router, prefix="/blob", tags=["blob"])
