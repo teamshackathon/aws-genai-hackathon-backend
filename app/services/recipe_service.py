@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.recipe import ExternalService, Ingredient, Process, Recipe, RecipeStatus
 from app.models.user_recipe import UserRecipe
-from app.schemas.recipe import RecipeList
+from app.schemas.recipe import IngredientUpdate, RecipeList
 
 
 class RecipeService:
@@ -111,6 +111,20 @@ class RecipeService:
         self.db.refresh(user_recipe)
         return user_recipe
     
+    def create_ingredient(self, recipe_id: int, ingredient: str, amount: str) -> Ingredient:
+        """新しい材料を作成"""
+        new_ingredient = Ingredient(
+            recipe_id=recipe_id, 
+            ingredient=ingredient, 
+            amount=amount,
+            created_date=datetime.utcnow(),
+            updated_date=datetime.utcnow()
+        )
+        self.db.add(new_ingredient)
+        self.db.commit()
+        self.db.refresh(new_ingredient)
+        return new_ingredient
+    
     async def create_ingredients(self, ingredients: List[Ingredient]) -> List[Ingredient]:
         """材料を一括で作成"""
         self.db.add_all(ingredients)
@@ -133,6 +147,28 @@ class RecipeService:
         self.db.commit()
         self.db.refresh(recipe)
         return recipe
+    
+    def update_ingredients(self, ingredient_id, ingredients: IngredientUpdate) -> Ingredient:
+        """材料を一括で更新"""
+        existing_ingredient = self.db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+        if existing_ingredient is None:
+            raise ValueError(f"Ingredient with id {ingredient_id} not found")
+        # 更新するフィールドを設定
+        existing_ingredient.ingredient = ingredients.ingredient
+        existing_ingredient.amount = ingredients.amount
+        existing_ingredient.updated_date = datetime.utcnow()
+        self.db.commit()
+        self.db.refresh(existing_ingredient)
+        return existing_ingredient
+    
+    def delete_ingredient(self, ingredient_id: int) -> bool:
+        """指定されたIDの材料を削除"""
+        ingredient = self.db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+        if ingredient is None:
+            raise ValueError(f"Ingredient with id {ingredient_id} not found")
+        self.db.delete(ingredient)
+        self.db.commit()
+        return True
     
     def get_user_recipe(self, user_id: int, recipe_id: int) -> UserRecipe:
         """ユーザーレシピを取得"""
