@@ -254,3 +254,165 @@ async def github_callback(
         return RedirectResponse(
             url=f"{frontend_url}/auth/callback?{urlencode(redirect_params)}"
         )
+    
+@router.get("/login/google")
+async def login_google(request: Request):
+    """
+    Google OAuth認証のリダイレクトURLを生成
+    """
+    # セッションIDを取得またはCookieから生成
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = secrets.token_urlsafe(16)
+
+    # stateトークンを生成
+    state = generate_state_token(session_id)
+
+    # Google認証URL生成
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile https://www.googleapis.com/auth/youtube.force-ssl",
+        "state": state,
+        "access_type": "offline",  # refresh_token を取得するために必要 
+    }
+    google_auth_url = f"https://accounts.google.com/o/oauth2/auth?{urlencode(params)}"
+
+    # セッションIDをCookieに設定してリダイレクト
+    response = RedirectResponse(url=google_auth_url)
+    response.set_cookie(key="session_id", value=session_id, httponly=True, samesite="none")
+    return response
+
+@router.get("/callback/google")
+async def google_callback(
+    request: Request,
+    code: str,
+    state: str,
+    scope: str = None,
+    authuser: int = None,
+    prompt: str = None,
+    db: Session = Depends(deps.get_db),
+):
+    """
+    Google OAuth認証のコールバック処理
+
+    Googleから返されたコードを使用してアクセストークンを取得し、
+    ユーザー情報を取得してデータベースに保存します。
+    認証成功後はJWTトークンを生成して返します。
+    """
+    # 認証コードの検証
+    if not code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="認証コードが見つかりません"
+        )
+
+    # セッションIDを取得
+    # session_id = request.cookies.get("session_id")
+    # if not session_id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="セッションIDが見つかりません"
+    #     )
+
+    # stateトークンを検証
+    # if not security.verify_state_token(session_id, state):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="不正なリクエスト - stateトークンが無効です"
+    #     )
+
+    # Googleからアクセストークンを取得
+    token_url = "https://oauth2.googleapis.com/token"
+
+    token_payload = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "code": code,
+        "grant_type": "authorization_code",
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+    }
+
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(token_url, data=token_payload)
+
+        if token_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Googleからのトークン取得に失敗しました:{token_response.text}"
+            )
+
+        token_data = token_response.json()
+        access_token = token_data.get("access_token")
+
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Googleからのアクセストークン取得に失敗しました"
+            )
+
+        # Googleからユーザー情報を取得
+        user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+        auth_headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json"
+        }
+
+        user_response = await client.get(user_info_url, headers=auth_headers)
+        if user_response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Googleからのユーザー情報取得に失敗しました"
+            )
+        
+        google_user = user_response.json()
+        # データベースにユーザーがすでに存在するか確認
+        user = crud.get_by_oauth_id(db, provider="google", oauth_id=str(google_user.get("sub")))
+        if not user:
+            # メールアドレスで検索
+            user = crud.get_by_email(db, email=google_user.get("email"))
+
+            if user:
+                # 既存ユーザーにGoogle情報を追加、ここにはGoogleのアクセストークンも含まれる
+                if not user.oauth_provider:
+                    user_update = {
+                        "oauth_provider": "google",
+                        "oauth_id": str(google_user.get("sub")),
+                        "google_username": google_user.get("name"),
+                        "google_avatar_url": google_user.get("picture"),
+                        "refresh_token": token_data.get("refresh_token"),  # リフレッシュトークンを保存
+                    }
+                    user = crud.update(db, db_obj=user, obj_in=user_update)
+            else:
+                # 新規ユーザーの作成
+                user_oauth_data = schemas.UserOAuthCreate(
+                    email=google_user.get("email"),
+                    name=google_user.get("name"),
+                    oauth_provider="google",
+                    oauth_id=str(google_user.get("sub")),
+                    google_username=google_user.get("name"),
+                    google_avatar_url=google_user.get("picture"),
+                    refresh_token=token_data.get("refresh_token"),  # リフレッシュトークンを保存
+                )
+                user = crud.create_oauth_user(db, obj_in=user_oauth_data)
+            
+        # ログイン時間を更新
+        crud.update_login_time(db=db, user=user)
+        # JWTトークンの生成
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = security.create_access_token(
+            user.id, expires_delta=access_token_expires
+        )
+
+        # フロントエンドのURLにトークン情報をクエリパラメータとして追加してリダイレクト
+        frontend_url = settings.FRONTEND_REDIRECT_URL
+        redirect_params = {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": str(settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60),
+        }
+        return RedirectResponse(
+            url=f"{frontend_url}/auth/callback?{urlencode(redirect_params)}"
+        )

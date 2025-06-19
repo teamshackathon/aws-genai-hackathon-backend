@@ -35,6 +35,14 @@ class UserUpdate(UserBase):
     password: Optional[str] = None
     bio: Optional[str] = None
     profile_image_url: Optional[str] = None
+    serving_size: Optional[int] = None
+    salt_preference: Optional[str] = None
+    sweetness_preference: Optional[str] = None
+    spiciness_preference: Optional[str] = None
+    cooking_time_preference: Optional[str] = None
+    meal_purpose: Optional[str] = None
+    disliked_ingredients: Optional[str] = None
+    preferrence_trend: Optional[str] = None
 
 
 class UserInDBBase(UserBase):
@@ -49,6 +57,14 @@ class UserInDBBase(UserBase):
     is_superuser: bool
     created_date: datetime
     updated_date: datetime
+    serving_size: Optional[int]
+    salt_preference: Optional[str]
+    sweetness_preference: Optional[str]
+    spiciness_preference: Optional[str]
+    cooking_time_preference: Optional[str]
+    meal_purpose: Optional[str]
+    disliked_ingredients: Optional[str]
+    preference_trend: Optional[str]
 
     class Config:
         from_attributes = True
@@ -68,6 +84,14 @@ class UserMe(BaseModel):
     google_picture: Optional[str] = None     # 元のフィールド
     last_login: Optional[datetime] = None
     bio: Optional[str] = None
+    serving_size: Optional[int]
+    salt_preference: Optional[str]
+    sweetness_preference: Optional[str]
+    spiciness_preference: Optional[str]
+    cooking_time_preference: Optional[str]
+    meal_purpose: Optional[str]
+    disliked_ingredients: Optional[str]
+    preference_trend: Optional[str]
 
     class Config:
         from_attributes = True

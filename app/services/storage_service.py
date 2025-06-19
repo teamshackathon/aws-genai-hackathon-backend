@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 import aioboto3
+from botocore.exceptions import ClientError
 
 from app.core.config import settings
 
@@ -45,3 +46,26 @@ class StorageService:
                     "url": url
                 })
             return result
+        
+    async def download_file(self, path: str) -> bytes:
+        """ファイルをダウンロードする
+        
+        Args:
+            path: ファイルのパス
+            
+        Returns:
+            bytes: ファイルの内容
+            
+        Raises:
+            ClientError: ファイルが見つからない、またはアクセスできない場合
+        """
+        async with self.session.client('s3', endpoint_url=self.endpoint_url) as s3:
+            try:
+                response = await s3.get_object(Bucket=self.bucket_name, Key=path)
+                async with response['Body'] as stream:
+                    return await stream.read()
+            except ClientError as e:
+                error_code = e.response.get('Error', {}).get('Code')
+                if error_code == 'NoSuchKey':
+                    raise FileNotFoundError(f"File not found: {path}")
+                raise

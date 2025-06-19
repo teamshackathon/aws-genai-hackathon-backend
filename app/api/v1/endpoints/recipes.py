@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,8 +8,11 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core.aws.polly_client import PollyClient
 from app.models.user import Users
-from app.schemas.recipe import ExternalService, Ingredient, Process, Recipe, RecipeList, RecipeStatus, VoiceReaderInput
+from app.schemas.recipe import ExternalService, Ingredient, IngredientCreate, IngredientUpdate, Process, Recipe, RecipeList, RecipeStatus, VoiceReaderInput
 from app.services.recipe_service import RecipeService
+
+# ロガーの設定
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -41,6 +45,8 @@ def get_recipes(
     per_page: int = Query(20, ge=1, le=100, description="1ページあたりのレシピ数"),
     keyword: Optional[str] = Query(None, description="検索キーワード"),
     favorites_only: bool = Query(False, description="お気に入りのみを取得するかどうか"),
+    sorted_by: Optional[str] = Query(None, description="ソート条件"),
+    order_by: Optional[str] = Query(None, description="ソート順（ascまたはdesc）"),
     recipe_service: RecipeService = Depends(get_recipe_service),
     current_user: Users = Depends(deps.get_current_user)
 ) -> RecipeList:
@@ -52,7 +58,9 @@ def get_recipes(
         page=page,
         per_page=per_page,
         keyword=keyword,
-        favorites_only=favorites_only
+        favorites_only=favorites_only,
+        sorted_by=sorted_by,
+        order_by=order_by
     )
 
 @router.get("/external-services", response_model=list[ExternalService])
@@ -155,3 +163,51 @@ def read_process_voice(
         raise HTTPException(
             status_code=500, detail=f"音声生成に失敗しました。{str(e)}"
         )
+
+@router.post("/{recipe_id}/ingredient", response_model=Ingredient)
+def create_ingredient(
+    recipe_id: int,
+    ingredient: IngredientCreate,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> Ingredient:
+    """
+    新しい材料を作成します。
+    """
+    created_ingredient = recipe_service.create_ingredient(
+        recipe_id=recipe_id,
+        ingredient=ingredient.ingredient,
+        amount=ingredient.amount,
+    )
+    return created_ingredient
+
+@router.put("/ingredient/{ingredient_id}", response_model=Ingredient)
+def update_ingredient(
+    ingredient_id: int,
+    ingredient: IngredientUpdate,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> Ingredient:
+    """
+    指定されたIDの材料を更新します。
+    """
+    logger.info(f"Updating ingredient with ID: {ingredient_id}, Data: {ingredient}")
+    updated_ingredient = recipe_service.update_ingredients(ingredient_id, ingredient)
+    if not updated_ingredient:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    return updated_ingredient
+
+@router.delete("/ingredient/{ingredient_id}", response_model=bool)
+def delete_ingredient(
+    ingredient_id: int,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> bool:
+    """
+    指定されたIDの材料を削除します。
+    """
+    success = recipe_service.delete_ingredient(ingredient_id)
+    logger.info(f"Deleting ingredient with ID: {ingredient_id}, Success: {success}")
+    if not success:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    return True

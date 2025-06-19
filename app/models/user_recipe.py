@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.sql import func
 
 from app.db.base_class import Base
@@ -14,6 +14,8 @@ class UserRecipe(Base):
     
     # 追加のユーザー関連情報（オプション）
     is_favorite = Column(Boolean, default=False, comment="お気に入りフラグ")
+    note = Column(Text, nullable=True, comment="ユーザーノート")
+    rating = Column(Integer, nullable=True, comment="ユーザー評価 (1-5)")
     created_date = Column(DateTime, default=func.now(), nullable=False)
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     

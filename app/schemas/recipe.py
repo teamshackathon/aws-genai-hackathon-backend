@@ -71,9 +71,8 @@ class IngredientBase(BaseModel):
 
 class IngredientCreate(IngredientBase):
     """材料作成スキーマ"""
-    recipe_id: Optional[int]
-    created_date: Optional[datetime] = datetime.utcnow()
-    updated_date: Optional[datetime] = datetime.utcnow()
+    ingredient: Optional[str] = Field(None, description="材料名")
+    amount: Optional[str] = Field(None, description="量（単位付き）")
 
 
 class IngredientUpdate(BaseModel):
@@ -204,6 +203,8 @@ class UserRecipeBase(BaseModel):
     user_id: int = Field(..., description="ユーザーID")
     recipe_id: int = Field(..., description="レシピID")
     is_favorite: bool = Field(False, description="お気に入りフラグ")
+    note: Optional[str] = Field(None, description="ユーザーのメモ")
+    rating: Optional[int] = Field(None, ge=1, le=5, description="ユーザー評価（1〜5）")
 
 
 class UserRecipeCreate(UserRecipeBase):
@@ -214,6 +215,8 @@ class UserRecipeCreate(UserRecipeBase):
 class UserRecipeUpdate(BaseModel):
     """ユーザーレシピ関連更新スキーマ"""
     is_favorite: Optional[bool] = Field(None, description="お気に入りフラグ")
+    note: Optional[str] = Field(None, description="ユーザーのメモ")
+    rating: Optional[int] = Field(None, ge=1, le=5, description="ユーザー評価（1〜5）")
     updated_date: Optional[datetime] = datetime.utcnow()
 
 

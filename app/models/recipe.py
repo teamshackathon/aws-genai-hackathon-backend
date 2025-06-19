@@ -1,3 +1,4 @@
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.sql import func
 
@@ -49,6 +50,7 @@ class Recipe(Base):
     created_date = Column(DateTime, default=func.now(), nullable=False)
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     recipe_name = Column(String(256), nullable=False, comment="料理名")
+    embedding = Column(Vector(1536), nullable=True, comment="レシピの埋め込みベクトル")
     
     # リレーションシップ
     # status = relationship("RecipeStatus", back_populates="recipes")
