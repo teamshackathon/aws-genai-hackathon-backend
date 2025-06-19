@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.recipe import ExternalService, Ingredient, Process, Recipe, RecipeStatus
 from app.models.user_recipe import UserRecipe
-from app.schemas.recipe import IngredientUpdate, RecipeList
+from app.schemas.recipe import IngredientUpdate, ProcessUpdate, RecipeList
 
 
 class RecipeService:
@@ -170,6 +170,44 @@ class RecipeService:
         self.db.commit()
         return True
     
+    def create_process(self, recipe_id: int, process_number: int, process: str) -> Process:
+        """新しい調理手順を作成"""
+        new_process = Process(
+            recipe_id=recipe_id,
+            process_number=process_number,
+            process=process,
+            created_date=datetime.utcnow(),
+            updated_date=datetime.utcnow()
+        )
+        self.db.add(new_process)
+        self.db.commit()
+        self.db.refresh(new_process)
+        return new_process
+    
+    def update_process(self, process_id: int, process: ProcessUpdate) -> Process:
+        """調理手順を更新"""
+        existing_process = self.db.query(Process).filter(Process.id == process_id).first()
+        if existing_process is None:
+            raise ValueError(f"Process with id {process_id} not found")
+        # 更新するフィールドを設定
+        if process.process_number is not None:
+            existing_process.process_number = process.process_number
+        if process.process is not None:
+            existing_process.process = process.process
+        existing_process.updated_date = datetime.utcnow()
+        self.db.commit()
+        self.db.refresh(existing_process)
+        return existing_process
+    
+    def delete_process(self, process_id: int) -> bool:
+        """指定されたIDの調理手順を削除"""
+        process = self.db.query(Process).filter(Process.id == process_id).first()
+        if process is None:
+            raise ValueError(f"Process with id {process_id} not found")
+        self.db.delete(process)
+        self.db.commit()
+        return True
+
     def get_user_recipe(self, user_id: int, recipe_id: int) -> UserRecipe:
         """ユーザーレシピを取得"""
         user_recipe = self.db.query(UserRecipe).filter(
