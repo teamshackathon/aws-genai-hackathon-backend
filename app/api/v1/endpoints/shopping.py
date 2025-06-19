@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.models.user import Users
-from app.schemas.shopping import ShoppingItem, ShoppingItemCreate, ShoppingItemUpdate, ShoppingList, ShoppingListCreate, ShoppingListDetail, ShoppingListUpdate
+from app.schemas.shopping import ShoppingListCreateRequest, ShoppingListItemResponse, ShoppingListListResponse, ShoppingListResponse, UpdateShoppingListItemRequest
 from app.services.shopping_service import ShoppingService
 
 router = APIRouter()
@@ -19,93 +19,61 @@ def get_shopping_service(db: Session = Depends(deps.get_db)) -> ShoppingService:
             detail=f"ショッピングサービスの初期化に失敗しました: {str(e)}"
         )
 
-# ショッピングリスト一覧取得
-@router.get("", response_model=List[ShoppingList])
+# 1. 買い物リスト一覧取得（ページネーション対応）
+@router.get("", response_model=ShoppingListListResponse)
 def get_shopping_lists(
+    page: int = Query(1, ge=1, description="ページ番号"),
+    per_page: int = Query(20, ge=1, le=100, description="1ページあたりのリスト数"),
+    keyword: Optional[str] = Query(None, description="検索キーワード"),
     shopping_service: ShoppingService = Depends(get_shopping_service),
     current_user: Users = Depends(deps.get_current_user)
 ):
-    return shopping_service.get_lists(user_id=current_user.id)
+    return shopping_service.get_lists_with_pagination(
+        user_id=current_user.id,
+        page=page,
+        per_page=per_page,
+        keyword=keyword
+    )
 
-# ショッピングリスト詳細取得（アイテム含む）
-@router.get("/{list_id}", response_model=ShoppingListDetail)
-def get_shopping_list_detail(
-    list_id: int,
-    shopping_service: ShoppingService = Depends(get_shopping_service),
-    current_user: Users = Depends(deps.get_current_user)
-):
-    result = shopping_service.get_list_detail(list_id=list_id, user_id=current_user.id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Shopping list not found")
-    return result
-
-# ショッピングリスト作成
-@router.post("", response_model=ShoppingList)
+# 2. 買い物リスト作成
+@router.post("", response_model=ShoppingListResponse)
 def create_shopping_list(
-    shopping_list: ShoppingListCreate,
+    req: ShoppingListCreateRequest,
     shopping_service: ShoppingService = Depends(get_shopping_service),
     current_user: Users = Depends(deps.get_current_user)
 ):
-    return shopping_service.create_list(shopping_list, user_id=current_user.id)
+    return shopping_service.create_list(req, user_id=current_user.id)
 
-# ショッピングリスト更新
-@router.put("/{list_id}", response_model=ShoppingList)
-def update_shopping_list(
-    list_id: int,
-    shopping_list: ShoppingListUpdate,
+# 3. 買い物リスト詳細取得
+@router.get("/{shopping_list_id}", response_model=ShoppingListResponse)
+def get_shopping_list_detail(
+    shopping_list_id: int,
     shopping_service: ShoppingService = Depends(get_shopping_service),
     current_user: Users = Depends(deps.get_current_user)
 ):
-    result = shopping_service.update_list(list_id, shopping_list, user_id=current_user.id)
+    result = shopping_service.get_list_detail(shopping_list_id, user_id=current_user.id)
     if not result:
         raise HTTPException(status_code=404, detail="Shopping list not found")
     return result
 
-# ショッピングリスト削除
-@router.delete("/{list_id}")
-def delete_shopping_list(
-    list_id: int,
+# 4. 買い物リストのアイテム一覧取得
+@router.get("/{shopping_list_id}/items", response_model=List[ShoppingListItemResponse])
+def get_shopping_list_items(
+    shopping_list_id: int,
     shopping_service: ShoppingService = Depends(get_shopping_service),
     current_user: Users = Depends(deps.get_current_user)
 ):
-    success = shopping_service.delete_list(list_id, user_id=current_user.id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Shopping list not found")
-    return {"result": "deleted"}
+    return shopping_service.get_items(shopping_list_id, user_id=current_user.id)
 
-# アイテム追加
-@router.post("/{list_id}/items", response_model=ShoppingItem)
-def add_item(
-    list_id: int,
-    item: ShoppingItemCreate,
+# 5. 買い物リストアイテムの更新
+@router.put("/item/{shopping_list_item_id}", response_model=ShoppingListItemResponse)
+def update_shopping_list_item(
+    shopping_list_item_id: int,
+    req: UpdateShoppingListItemRequest,
     shopping_service: ShoppingService = Depends(get_shopping_service),
     current_user: Users = Depends(deps.get_current_user)
 ):
-    return shopping_service.add_item(list_id, item, user_id=current_user.id)
-
-# アイテム更新
-@router.put("/{list_id}/items/{item_id}", response_model=ShoppingItem)
-def update_item(
-    list_id: int,
-    item_id: int,
-    item: ShoppingItemUpdate,
-    shopping_service: ShoppingService = Depends(get_shopping_service),
-    current_user: Users = Depends(deps.get_current_user)
-):
-    result = shopping_service.update_item(list_id, item_id, item, user_id=current_user.id)
+    result = shopping_service.update_item(shopping_list_item_id, req, user_id=current_user.id)
     if not result:
         raise HTTPException(status_code=404, detail="Item not found")
     return result
-
-# アイテム削除
-@router.delete("/{list_id}/items/{item_id}")
-def delete_item(
-    list_id: int,
-    item_id: int,
-    shopping_service: ShoppingService = Depends(get_shopping_service),
-    current_user: Users = Depends(deps.get_current_user)
-):
-    success = shopping_service.delete_item(list_id, item_id, user_id=current_user.id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return {"result": "deleted"}

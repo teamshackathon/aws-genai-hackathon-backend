@@ -72,3 +72,38 @@ class ShoppingListDetail(ShoppingList):
 
     class Config:
         from_attributes = True
+
+# --- ShoppingList一覧レスポンス ---
+class ShoppingListResponse(BaseModel):
+    id: int
+    recipe_id: int
+    list_name: str
+    list_id: str
+    created_at: str
+    updated_at: str
+
+class ShoppingListListResponse(BaseModel):
+    items: List[ShoppingListResponse]
+    total: int
+    page: int
+    per_page: int
+    pages: int
+
+# --- ShoppingList作成リクエスト ---
+class ShoppingListCreateRequest(BaseModel):
+    recipe_id: int
+
+# --- ShoppingList詳細レスポンス（同上） ---
+# ShoppingListResponse をそのまま利用
+
+# --- ShoppingListItemレスポンス ---
+class ShoppingListItemResponse(BaseModel):
+    id: int
+    ingredient_id: int
+    is_checked: bool
+    created_at: str
+    updated_at: str
+
+# --- ShoppingListItem更新リクエスト ---
+class UpdateShoppingListItemRequest(BaseModel):
+    is_checked: bool
