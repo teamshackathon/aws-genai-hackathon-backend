@@ -71,9 +71,8 @@ class IngredientBase(BaseModel):
 
 class IngredientCreate(IngredientBase):
     """材料作成スキーマ"""
-    recipe_id: Optional[int]
-    created_date: Optional[datetime] = datetime.utcnow()
-    updated_date: Optional[datetime] = datetime.utcnow()
+    ingredient: Optional[str] = Field(None, description="材料名")
+    amount: Optional[str] = Field(None, description="量（単位付き）")
 
 
 class IngredientUpdate(BaseModel):
