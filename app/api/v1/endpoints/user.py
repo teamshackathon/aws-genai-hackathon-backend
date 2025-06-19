@@ -111,6 +111,8 @@ def update_user_recipe(
             user_id=current_user.id,
             recipe_id=recipe_id,
             is_favorite=user_recipe_update.is_favorite,
+            note=user_recipe_update.note,
+            rating=user_recipe_update.rating
         )
         
         if not updated_user_recipe:
