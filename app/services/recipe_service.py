@@ -31,7 +31,9 @@ class RecipeService:
         page: int = 1,
         per_page: int = 20,
         keyword: Optional[str] = None,
-        favorites_only: bool = False
+        favorites_only: bool = False,
+        sorted_by: Optional[str] = None, # "created_date", "updated_date", "recipe_name", "rating" などのソート条件
+        order_by: Optional[str] = None
     ) -> RecipeList:
         """レシピの一覧を取得"""
         query = self.db.query(Recipe).join(UserRecipe).filter(
@@ -48,6 +50,30 @@ class RecipeService:
 
         if favorites_only:
             query = query.filter(UserRecipe.is_favorite.is_(True))
+
+        # ソート条件の適用
+        if sorted_by and order_by:
+            if sorted_by == "created_date":
+                if order_by == "asc":
+                    query = query.order_by(Recipe.created_date.asc())
+                elif order_by == "desc":
+                    query = query.order_by(Recipe.created_date.desc())
+                query = query.order_by(Recipe.created_date.desc())
+            elif sorted_by == "updated_date":
+                if order_by == "asc":
+                    query = query.order_by(Recipe.updated_date.asc())
+                elif order_by == "desc":
+                    query = query.order_by(Recipe.updated_date.desc())
+            elif sorted_by == "recipe_name":
+                if order_by == "asc":
+                    query = query.order_by(Recipe.recipe_name.asc())
+                elif order_by == "desc":
+                    query = query.order_by(Recipe.recipe_name.desc())
+            elif sorted_by == "rating":
+                if order_by == "asc":
+                    query = query.order_by(UserRecipe.rating.asc())
+                elif order_by == "desc":
+                    query = query.order_by(UserRecipe.rating.desc())
 
         total_count = query.count()
         results = query.offset((page - 1) * per_page).limit(per_page).all()
@@ -132,7 +158,7 @@ class RecipeService:
             UserRecipe.recipe_id.in_(recipe_ids)
         ).all()
     
-    def update_user_recipe(self, user_id: int, recipe_id: int, is_favorite: bool) -> UserRecipe:
+    def update_user_recipe(self, user_id: int, recipe_id: int, is_favorite: bool, note: str, rating: int) -> UserRecipe:
         """ユーザーレシピを更新"""
         db_user_recipe = self.db.query(UserRecipe).filter(
             UserRecipe.user_id == user_id,
@@ -140,7 +166,14 @@ class RecipeService:
         ).first()
         if db_user_recipe is None:
             raise ValueError(f"UserRecipe with user_id {user_id} and recipe_id {recipe_id} not found")
-        db_user_recipe.is_favorite = is_favorite
+        if is_favorite is not None:
+            db_user_recipe.is_favorite = is_favorite
+        if note is not None:
+            db_user_recipe.note = note
+        if rating is not None:
+            if rating < 1 or rating > 5:
+                raise ValueError("Rating must be between 1 and 5")
+            db_user_recipe.rating = rating
         db_user_recipe.updated_date = datetime.utcnow()
         self.db.commit()
         self.db.refresh(db_user_recipe)

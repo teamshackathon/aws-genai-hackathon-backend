@@ -216,6 +216,8 @@ class UserRecipeCreate(UserRecipeBase):
 class UserRecipeUpdate(BaseModel):
     """ユーザーレシピ関連更新スキーマ"""
     is_favorite: Optional[bool] = Field(None, description="お気に入りフラグ")
+    note: Optional[str] = Field(None, description="ユーザーのメモ")
+    rating: Optional[int] = Field(None, ge=1, le=5, description="ユーザー評価（1〜5）")
     updated_date: Optional[datetime] = datetime.utcnow()
 
 

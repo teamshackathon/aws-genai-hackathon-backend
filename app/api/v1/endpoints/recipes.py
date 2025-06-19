@@ -41,6 +41,8 @@ def get_recipes(
     per_page: int = Query(20, ge=1, le=100, description="1ページあたりのレシピ数"),
     keyword: Optional[str] = Query(None, description="検索キーワード"),
     favorites_only: bool = Query(False, description="お気に入りのみを取得するかどうか"),
+    sorted_by: Optional[str] = Query(None, description="ソート条件"),
+    order_by: Optional[str] = Query(None, description="ソート順（ascまたはdesc）"),
     recipe_service: RecipeService = Depends(get_recipe_service),
     current_user: Users = Depends(deps.get_current_user)
 ) -> RecipeList:
@@ -52,7 +54,9 @@ def get_recipes(
         page=page,
         per_page=per_page,
         keyword=keyword,
-        favorites_only=favorites_only
+        favorites_only=favorites_only,
+        sorted_by=sorted_by,
+        order_by=order_by
     )
 
 @router.get("/external-services", response_model=list[ExternalService])
