@@ -105,7 +105,6 @@ class ProcessBase(BaseModel):
 
 class ProcessCreate(ProcessBase):
     """調理工程作成スキーマ"""
-    recipe_id: Optional[int]
     created_date: Optional[datetime] = datetime.utcnow()
     updated_date: Optional[datetime] = datetime.utcnow()
 
