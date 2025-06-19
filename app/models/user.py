@@ -43,6 +43,16 @@ class Users(Base):
     refresh_token = Column(String, nullable=True)
     token_expires = Column(DateTime, nullable=True)
 
+    # 追加のフィールド
+    serving_size = Column(Integer, nullable=True, default=1, comment="食べる人数")
+    salt_preference = Column(String, nullable=True, default="normal", comment="塩分の好み（low, normal, high）")
+    sweetness_preference = Column(String, nullable=True, default="normal", comment="甘さの好み（low, normal, high）")
+    spiciness_preference = Column(String, nullable=True, default="normal", comment="辛さの好み（low, normal, high）")
+    cooking_time_preference = Column(String, nullable=True, default="30分以内", comment="調理時間の好み")
+    meal_purpose = Column(String, nullable=True, default="", comment="食事の目的（breakfast, lunch, dinner, snack）")
+    disliked_ingredients = Column(Text, nullable=True, comment="嫌いな食材（カンマ区切り）")
+    preference_trend = Column(Text, nullable=True, comment="好みの傾向")
+
     @property
     def display_name(self):
         """表示用の名前を返す"""
