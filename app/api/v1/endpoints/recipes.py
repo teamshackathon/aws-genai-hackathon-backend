@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api import deps
 from app.core.aws.polly_client import PollyClient
 from app.models.user import Users
-from app.schemas.recipe import ExternalService, Ingredient, IngredientCreate, IngredientUpdate, Process, Recipe, RecipeList, RecipeStatus, VoiceReaderInput
+from app.schemas.recipe import ExternalService, Ingredient, IngredientCreate, IngredientUpdate, Process, ProcessCreate, ProcessUpdate, Recipe, RecipeList, RecipeStatus, VoiceReaderInput
 from app.services.recipe_service import RecipeService
 
 # ロガーの設定
@@ -210,4 +210,50 @@ def delete_ingredient(
     logger.info(f"Deleting ingredient with ID: {ingredient_id}, Success: {success}")
     if not success:
         raise HTTPException(status_code=404, detail="Ingredient not found")
+    return True
+
+@router.post("/{recipe_id}/process", response_model=Process)
+def create_process(
+    recipe_id: int,
+    process: ProcessCreate,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> Process:
+    """
+    新しい調理手順を作成します。
+    """
+    created_process = recipe_service.create_process(recipe_id, process.process_number, process.process)
+    if not created_process:
+        raise HTTPException(status_code=400, detail="Failed to create process")
+    return created_process
+
+@router.put("/process/{process_id}", response_model=Process)
+def update_process(
+    process_id: int,
+    process: ProcessUpdate,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> Process:
+    """
+    指定されたIDの調理手順を更新します。
+    """
+    logger.info(f"Updating process with ID: {process_id}, Data: {process}")
+    updated_process = recipe_service.update_process(process_id, process)
+    if not updated_process:
+        raise HTTPException(status_code=404, detail="Process not found")
+    return updated_process
+
+@router.delete("/process/{process_id}", response_model=bool)
+def delete_process(
+    process_id: int,
+    recipe_service: RecipeService = Depends(get_recipe_service),
+    current_user: Users = Depends(deps.get_current_user)
+) -> bool:
+    """
+    指定されたIDの調理手順を削除します。
+    """
+    success = recipe_service.delete_process(process_id)
+    logger.info(f"Deleting process with ID: {process_id}, Success: {success}")
+    if not success:
+        raise HTTPException(status_code=404, detail="Process not found")
     return True
