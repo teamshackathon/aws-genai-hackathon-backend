@@ -14,8 +14,8 @@ class UserShopping(Base):
     list_name = Column(String(256), nullable=False, comment="買い物リスト名")
     created_date = Column(DateTime, default=func.now(), nullable=False, comment="作成日時")
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, comment="更新日時")
-    
-    
+
+
 class ShoppingItem(Base):
     """ショッピングアイテムモデル"""
     __tablename__ = "shopping_items"
@@ -26,5 +26,3 @@ class ShoppingItem(Base):
     is_checked = Column(Boolean, default=False, comment="チェック済みフラグ")
     created_date = Column(DateTime, default=func.now(), nullable=False, comment="作成日時")
     updated_date = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False, comment="更新日時")
-
-   

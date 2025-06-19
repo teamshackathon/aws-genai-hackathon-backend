@@ -43,6 +43,7 @@ class Users(Base):
     refresh_token = Column(String, nullable=True)
     token_expires = Column(DateTime, nullable=True)
 
+    # 追加のフィールド
     serving_size = Column(Integer, nullable=True, default=1, comment="食べる人数")
     salt_preference = Column(String, nullable=True, default="normal", comment="塩分の好み（low, normal, high）")
     sweetness_preference = Column(String, nullable=True, default="normal", comment="甘さの好み（low, normal, high）")

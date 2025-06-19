@@ -90,7 +90,7 @@ services:
         sleep 5;
         mc alias set myminio http://minio:9000 minioadmin minioadmin &&
         mc mb myminio/bae-recipe-bucket &&
-        echo 'MinIO bucket created';
+        echo '✅ MinIO bucket created';
       "
     restart: "no"
 
