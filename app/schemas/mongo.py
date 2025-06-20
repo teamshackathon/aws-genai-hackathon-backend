@@ -124,3 +124,13 @@ class SessionListResponse(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         self.total = len(self.sessions)
+
+class CookingHistoryDocument(BaseModel):
+    """MongoDB cooking_historyコレクション用ドキュメント"""
+    user_id: Optional[int] = Field(None, description="ユーザーID（PostgreSQL）")
+    recipe_id: int = Field(..., description="レシピID（PostgreSQL）")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class CookingHistoryRequest(BaseModel):
+    """料理履歴追加リクエスト"""
+    recipe_id: int = Field(..., description="レシピID（PostgreSQL）")
