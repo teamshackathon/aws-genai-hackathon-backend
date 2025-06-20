@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.schemas.mongo import SessionDocument, SessionHistoryDocument, SessionHistoryMessage
+from app.schemas.mongo import CookingHistoryDocument, SessionDocument, SessionHistoryDocument, SessionHistoryMessage
 
 
 class MongoDBRecipeGenerationService:
@@ -137,3 +137,34 @@ class MongoDBRecipeGenerationService:
         # 一つのセッションを取得
         doc = await self.sessions_collection.find_one(query)
         return SessionDocument(**doc) if doc else None
+    
+class MongoDBCookingService:
+
+    def __init__(self, mongodb: AsyncIOMotorDatabase):
+        self.mongodb = mongodb
+        self.recipes_collection = mongodb["cooking_history"]
+
+    async def add_cooking_history(
+        self, 
+        user_id: int, 
+        recipe_id: str, 
+    ) -> CookingHistoryDocument:
+        """料理履歴を追加"""
+        history_id = str(uuid.uuid4())
+        cooking_history_doc = CookingHistoryDocument(
+            history_id=history_id,
+            user_id=user_id,
+            recipe_id=recipe_id,
+            created_at=datetime.utcnow()
+        )
+        
+        result = await self.recipes_collection.insert_one(cooking_history_doc)
+        return CookingHistoryDocument(**result.inserted_id, **cooking_history_doc.dict(by_alias=True))
+    
+    async def get_cooking_history(
+        self, 
+        user_id: int, 
+    ) -> List[CookingHistoryDocument]:
+        """ユーザーの料理履歴を取得"""
+        docs = await self.recipes_collection.find({"user_id": user_id}).to_list(length=None)
+        return [CookingHistoryDocument(**doc) for doc in docs]
