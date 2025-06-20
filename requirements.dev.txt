@@ -12,3 +12,4 @@ uvicorn[standard]
 motor
 celery
 pgvector
+amazon-transcribe
