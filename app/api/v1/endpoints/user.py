@@ -104,6 +104,28 @@ def get_user_recipes(
             detail="ユーザーレシピの取得に失敗しました。"
         )
 
+@router.get("/me/recipes/{recipe_id}", response_model=UserRecipe)
+def get_user_recipe(
+    recipe_id: int,
+    current_user = Depends(deps.get_current_user),
+    recipe_service: RecipeService = Depends(get_recipe_service),
+) -> UserRecipe:
+    """
+    ユーザーの特定のレシピ情報を取得
+    """
+    try:
+        user_recipe = recipe_service.get_user_recipe_by_id(user_id=current_user.id, recipe_id=recipe_id)
+        if not user_recipe:
+            raise ValueError(f"レシピID {recipe_id} のユーザーレシピが見つかりません。")
+        
+        return UserRecipe.from_orm(user_recipe)
+    except ValueError as e:
+        logger.error(f"レシピ取得エラー: {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
 @router.put("/me/recipes/{recipe_id}", response_model=bool)
 def update_user_recipe(
     recipe_id: int,
@@ -179,7 +201,33 @@ def get_user_shoppings(
             status_code=500,
             detail="ユーザーショッピングの取得に失敗しました。"
         )
-    
+
+@router.get("/me/shoppings/{shopping_id}", response_model=UserShopping)
+def get_user_shopping(
+    shopping_id: int,
+    current_user = Depends(deps.get_current_user),
+    shopping_service: ShoppingService = Depends(get_shopping_service),
+) -> UserShopping:
+    """
+    ユーザーの特定のショッピング情報を取得
+    """
+    try:
+        user_shopping = shopping_service.get_user_shopping_by_id(
+            user_id=current_user.id,
+            shopping_id=shopping_id
+        )
+        
+        if not user_shopping:
+            raise ValueError(f"ショッピングID {shopping_id} のユーザーショッピングが見つかりません。")
+        
+        return UserShopping.from_orm(user_shopping)
+    except ValueError as e:
+        logger.error(f"ショッピング取得エラー: {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
 @router.put("/me/shoppings/{shopping_id}", response_model=bool)
 def update_user_shopping(
     shopping_id: int,
