@@ -49,6 +49,16 @@ class ShoppingService:
         ).all()
         return user_shoppings
     
+    def get_user_shopping_by_id(self, user_shopping_id: int, user_id: int) -> Optional[UserShopping]:
+        """ユーザーショッピングをIDで取得"""
+        user_shopping = self.db.query(UserShopping).filter(
+            UserShopping.id == user_shopping_id,
+            UserShopping.user_id == user_id
+        ).first()
+        if not user_shopping:
+            return None
+        return user_shopping
+    
     def get_user_shoppings(self, user_id: int) -> List[UserShopping]:
         """ユーザーのショッピングリストを取得"""
         user_shoppings = self.db.query(UserShopping).filter(

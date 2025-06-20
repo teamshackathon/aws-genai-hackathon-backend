@@ -232,6 +232,16 @@ class RecipeService:
             UserRecipe.recipe_id.in_(recipe_ids)
         ).all()
     
+    def get_user_recipe_by_id(self, user_id: int, recipe_id: int) -> UserRecipe:
+        """ユーザーレシピをIDで取得"""
+        user_recipe = self.db.query(UserRecipe).filter(
+            UserRecipe.user_id == user_id,
+            UserRecipe.recipe_id == recipe_id
+        ).first()
+        if user_recipe is None:
+            raise ValueError(f"UserRecipe with user_id {user_id} and recipe_id {recipe_id} not found")
+        return user_recipe
+    
     def update_user_recipe(self, user_id: int, recipe_id: int, is_favorite: bool, note: str, rating: int) -> UserRecipe:
         """ユーザーレシピを更新"""
         db_user_recipe = self.db.query(UserRecipe).filter(
