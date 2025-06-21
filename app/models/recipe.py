@@ -1,8 +1,8 @@
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.sql import func
 
 from app.db.base_class import Base
+from pgvector.sqlalchemy import Vector
 
 
 class ExternalService(Base):
