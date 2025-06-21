@@ -6,12 +6,13 @@ from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
+
 class WebSocketConnectionManager:
     """WebSocket接続管理クラス（複数接続対応）"""
-    
+
     def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}           # connection_id -> websocket
-        self.session_connections: Dict[str, Set[str]] = {}           # session_id -> set of connection_ids
+        self.active_connections: Dict[str, WebSocket] = {}  # connection_id -> websocket
+        self.session_connections: Dict[str, Set[str]] = {}  # session_id -> set of connection_ids
 
     async def connect(self, websocket: WebSocket, session_id: str) -> str:
         await websocket.accept()
@@ -54,6 +55,7 @@ class WebSocketConnectionManager:
 
     def get_connected_sessions(self) -> list:
         return list(self.session_connections.keys())
+
 
 # グローバルインスタンス
 ws_manager = WebSocketConnectionManager()
