@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
     AWS_REGION_NAME: Optional[str] = os.getenv("AWS_REGION_NAME", "ap-northeast-1")
 
+    # Amazon Bedrockの埋め込みモデル設定
+    USE_VECTOR_SEARCH: bool = os.getenv("USE_VECTOR_SEARCH", "false")
+
     # MONOGDB設定
     MONGODB_URL: Optional[str] = None
     MONGODB_HOST: Optional[str] = os.getenv("MONGODB_HOST", "mongo")
