@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 from langchain_aws.chat_models.bedrock import ChatBedrock
+from langchain_aws.embeddings.bedrock import BedrockEmbeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.core.config import settings
@@ -27,4 +28,28 @@ class BedrockClient:
 
     def get_client(self) -> BaseChatModel:
         """Bedrockクライアントを取得"""
+        return self.client
+    
+class EmbeddingBedrockClient:
+    """Amazon Bedrockの埋め込みクライアント"""
+
+    def __init__(self):
+        self.client = self._initialize_client()
+
+    def _initialize_client(self) -> BedrockEmbeddings:
+        """Amazon Bedrockの埋め込みクライアントを初期化"""
+        try:
+            return BedrockEmbeddings(
+                model_id='amazon.titan-embed-text-v1',
+                region_name='ap-northeast-1',  # 東京リージョン
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to initialize Amazon Bedrock embeddings service: {str(e)}"
+            )
+        
+    def get_client(self) -> BedrockEmbeddings:
+        """Bedrock埋め込みクライアントを取得"""
         return self.client

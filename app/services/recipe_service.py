@@ -1,12 +1,16 @@
+import logging
 from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.aws.bedrock_client import EmbeddingBedrockClient
+from app.core.config import settings
 from app.models.recipe import ExternalService, Ingredient, Process, Recipe, RecipeStatus
 from app.models.user_recipe import UserRecipe
 from app.schemas.recipe import IngredientUpdate, ProcessUpdate, RecipeList
 
+logger = logging.getLogger(__name__)
 
 class RecipeService:
 
@@ -33,7 +37,8 @@ class RecipeService:
         keyword: Optional[str] = None,
         favorites_only: bool = False,
         sorted_by: Optional[str] = None, # "created_date", "updated_date", "recipe_name", "rating" などのソート条件
-        order_by: Optional[str] = None
+        order_by: Optional[str] = None,
+        embedding_client: Optional[EmbeddingBedrockClient] = None
     ) -> RecipeList:
         """レシピの一覧を取得"""
         query = self.db.query(Recipe).join(UserRecipe).filter(
@@ -41,15 +46,26 @@ class RecipeService:
         )
 
         # フィルタリング条件の適用
+        logger.info(f"Filtering recipes with keyword: {keyword}, favorites_only: {favorites_only}, {settings.USE_VECTOR_SEARCH}")
         if keyword:
-            query = query.filter(
-                (Recipe.recipe_name.ilike(f"%{keyword}%")) |
-                (Recipe.keyword.ilike(f"%{keyword}%")) |
-                (Recipe.genrue.ilike(f"%{keyword}%"))
-            )
+            if settings.USE_VECTOR_SEARCH:
+                # キーワードをベクトル化
+                keyword_vector = embedding_client.embed_query(keyword)
+                logger.info("used vector search")
+                # ベクトル検索を実行
+                query = query.filter(
+                    Recipe.embedding.op('<->')(keyword_vector) < 0.5
+                )
+            else:
+                # キーワードによる部分一致検索
+                query = query.filter(
+                    (Recipe.recipe_name.ilike(f"%{keyword}%")) |
+                    (Recipe.keyword.ilike(f"%{keyword}%")) |
+                    (Recipe.genrue.ilike(f"%{keyword}%"))
+                )
 
-        if favorites_only:
-            query = query.filter(UserRecipe.is_favorite.is_(True))
+            if favorites_only:
+                query = query.filter(UserRecipe.is_favorite.is_(True))
 
         # ソート条件の適用
         if sorted_by and order_by:
