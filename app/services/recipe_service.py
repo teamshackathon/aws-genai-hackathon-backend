@@ -262,3 +262,15 @@ class RecipeService:
         self.db.commit()
         self.db.refresh(db_user_recipe)
         return db_user_recipe
+    
+    def delete_user_recipe(self, user_id: int, recipe_id: int) -> bool:
+        """ユーザーレシピを削除"""
+        db_user_recipe = self.db.query(UserRecipe).filter(
+            UserRecipe.user_id == user_id,
+            UserRecipe.recipe_id == recipe_id
+        ).first()
+        if db_user_recipe is None:
+            raise ValueError(f"UserRecipe with user_id {user_id} and recipe_id {recipe_id} not found")
+        self.db.delete(db_user_recipe)
+        self.db.commit()
+        return True
