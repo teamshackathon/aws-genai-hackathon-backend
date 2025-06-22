@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.api import deps
+from app.core.aws.bedrock_client import EmbeddingBedrockClient
 from app.core.aws.polly_client import PollyClient
 from app.models.user import Users
 from app.schemas.recipe import ExternalService, Ingredient, IngredientCreate, IngredientUpdate, Process, ProcessCreate, ProcessUpdate, Recipe, RecipeList, RecipeStatus, VoiceReaderInput
@@ -38,6 +39,16 @@ def get_polly_client():
             status_code=500, detail="Failed to initialize Amazon Polly client. Please check AWS credentials."
         )
 
+def get_embedding_bedrock_client():
+    """Amazon Bedrockの埋め込みクライアントを取得"""
+    try:
+        embedding_client = EmbeddingBedrockClient()
+        return embedding_client.get_client()
+    except ValueError:
+        raise HTTPException(
+            status_code=500, detail="Failed to initialize Amazon Bedrock embeddings client. Please check AWS credentials."
+        )
+
 # ページネーション付きのレシピ一覧を取得
 @router.get("", response_model=RecipeList)
 def get_recipes(
@@ -48,7 +59,8 @@ def get_recipes(
     sorted_by: Optional[str] = Query(None, description="ソート条件"),
     order_by: Optional[str] = Query(None, description="ソート順（ascまたはdesc）"),
     recipe_service: RecipeService = Depends(get_recipe_service),
-    current_user: Users = Depends(deps.get_current_user)
+    current_user: Users = Depends(deps.get_current_user),
+    embedding_client: EmbeddingBedrockClient = Depends(get_embedding_bedrock_client)
 ) -> RecipeList:
     """
     ページネーション付きのレシピ一覧を取得します。
@@ -60,7 +72,8 @@ def get_recipes(
         keyword=keyword,
         favorites_only=favorites_only,
         sorted_by=sorted_by,
-        order_by=order_by
+        order_by=order_by,
+        embedding_client=embedding_client
     )
 
 @router.get("/external-services", response_model=list[ExternalService])
