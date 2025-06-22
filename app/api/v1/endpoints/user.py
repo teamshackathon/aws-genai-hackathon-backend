@@ -159,7 +159,32 @@ def update_user_recipe(
             status_code=404,
             detail=str(e)
         )
-    
+
+@router.delete("/me/recipes/{recipe_id}", response_model=bool)
+def delete_user_recipe(
+    recipe_id: int,
+    current_user = Depends(deps.get_current_user),
+    recipe_service: RecipeService = Depends(get_recipe_service),
+) -> bool:
+    """
+    ユーザーのレシピ情報を削除
+    """
+    try:
+        # ユーザーのレシピ情報を削除
+        deleted = recipe_service.delete_user_recipe(
+            user_id=current_user.id,
+            recipe_id=recipe_id
+        )
+        if not deleted:
+            raise ValueError(f"レシピID {recipe_id} のユーザーレシピが見つかりません。")
+        return True
+    except ValueError as e:
+        logger.error(f"レシピ削除エラー: {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
 @router.get("/me/shoppings", response_model=list[UserShopping])
 def get_user_shoppings(
     ids: str = Query(None, description="ショッピングIDのカンマ区切りリスト"),
@@ -256,3 +281,4 @@ def update_user_shopping(
             status_code=404,
             detail=str(e)
         )
+    
