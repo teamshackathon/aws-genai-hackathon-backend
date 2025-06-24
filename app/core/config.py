@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI")
 
-    FRONTEND_REDIRECT_URL: Optional[str] = os.getenv("FRONTEND_REDIRECT_URL", "http://localhost:3000/bae-recipe")
+    FRONTEND_REDIRECT_URL: Optional[str] = os.getenv("FRONTEND_REDIRECT_URL", "http://localhost:3000")
     
     # データベース設定
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "db")
