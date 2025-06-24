@@ -81,9 +81,9 @@ spec:
             uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2 --timeout-keep-alive 60 --log-level info
         env:
         - name: ALLOWED_ORIGINS
-          value: "https://163.44.125.128"
+          value: "https://bae-recipe.com"
         - name: OPENAPI_URL
-          value: "/api-bae-recipe"
+          value: ""
         - name: ENVIRONMENT
           value: "production"
         - name: POSTGRES_SERVER
